@@ -6,12 +6,13 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <cmath>
 #include "Fungicide.h"
 #include "Pathogen.h"
 #include "Crop.h"
 
 // SIMULATION VARIABLES
-double processNumber;
+unsigned int processNumber;
 
 // TIME VARIABLES
 // How many time units in a season?
