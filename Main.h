@@ -6,13 +6,12 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <cmath>
 #include "Fungicide.h"
 #include "Pathogen.h"
 #include "Crop.h"
 
 // SIMULATION VARIABLES
-unsigned int processNumber;
+double processNumber;
 
 // TIME VARIABLES
 // How many time units in a season?
@@ -121,7 +120,7 @@ double tuberGrowthRate;
 
 // Parameters used in growth and senescense functions
 double aCropParam, bCropParam, cCropParam, mCropParam, nCropParam;
-
+double 	solA, solB,	solX, K;
 // A vector specifying if the crop has receptors against each of the pathogen virulence genes
 std::vector<bool> cropReceptor;
 
@@ -130,6 +129,7 @@ std::vector<bool> cropReceptor;
 double PIb;
 double PIxi;
 
+double primaryInoculum; 
 // The proprtion of spores that are produced and move to the overwinter pool
 double Vtnu;
 double Vtt0;
