@@ -218,6 +218,8 @@ legend("topright",title="Theta:",legend=c(0.1,0.5,0.9),lty=1:3,pch=1:3)
 
 Figure 4. Reduction in the infection efficiency as resistance is increased or the number of QTLs with $\theta = 0.5$ is increased.
 
+The number of resistance genes in the model is the same as the number of virulence genes. That is, we assume that there is a single virulence gene against each resistance gene. Each resistance gene is assumed to reduce the life-history parameters by the same amount.
+
 ## Fungicide
 
 The other main control option is the application of pesticides. As with previous papers, we model the effect of a single pesticide by decreasing the life-history parameters of the fungus according to the dose:
@@ -271,13 +273,17 @@ $$IE = IE_0 (1 - \alpha_{Max}) (1 - \phi) (1 - e^{-\beta D})$$
 
 ```{r FungicideInsensitivity, echo=FALSE}
 
-plot(IE * (1 - a_max[1] * (1 - 0.0) * (1 - exp(-beta[1] * dose)))~dose,type="l",ylim=c(0,IE))
+plot(IE * (1 - a_max[1] * (1 - 0.0) * (1 - exp(-beta[1] * dose)))~dose,type="l",ylim=c(0,IE),xlab="Dose",ylab="Infection efficiency")
 lines(IE * (1 - a_max[1] * (1 - 0.5) * (1 - exp(-beta[1] * dose)))~dose,col=2)
 lines(IE * (1 - a_max[1] * (1 - 1) * (1 - exp(-beta[1] * dose)))~dose,col=3)
-legend("bottomright",lty=1,col=1:3,legend=paste(c(0.0,0.5,1.0)),title="Phi:")
+legend("bottomleft",lty=1,col=1:3,legend=paste(c(0.0,0.5,1.0)),title="Phi:")
 ```
 
 Figure 6. Effect of the fungicide resistance genes.
+
+### Fitness cost of fungicide insensitivity
+
+There is also fitness costs of fungicide insensitivity, $\eta$.
 
 ## Mutation
 
@@ -285,12 +291,68 @@ Mutation happens.
 
 # Simulation with Kevin's parameters
 
-The following graphs show what happens with Kevin's parameters.
+The following graphs show what happens with Kevin's parameters using Kevin's C++ model (with my corrections). These parameters are summarised in the table here:
+
+|**Parameter**|**Description**|**Value**|
+|------|------------------------------------|------|
+||**Crop parameters**||
+|a|Maximum area index|6|
+|b|Slope of crop growth|90|
+|c|Mid-point of crop growth|2100|
+|m|Mid-point of crop senesence|3850|
+|n|Slope of crop senesence|80|
+|H0|Initial area index of crop|4e-10|
+||**Pathogen parameters**||
+|$\mu$|Latent period|50.66542|
+|$\sigma$|Infectious period|102|
+|SR|Sporulation rate|8|
+|IE|Infection efficiency|0.01655833|
+||**Control parameters**||
+|$\alpha_{Max}$|Asymptote of dose-response curve|1.0|
+|$\beta$|Slope of dose-response curve|5|
+|$\theta$|Proportional reduction due to a single resistance gene|Variable (see below)|
+||Fungicide decay rate|0.007967209|
+||**Resistance parameters**||
+||Mutation rate|0.000001|
+|fungResPi|Proportional reduction in $\alpha_{Max}$|0.5|
+|$\zeta$|Fitness cost of being virulent|0.002|
+|$\eta$|Fitness cost of fungicide insensitivity|0.002|
+||Dominance (of all traits)|0.5|
 
 ## Default epidemic
 
-![Changing $\phi$ changes the selection for fungicide insensitivity](figures/FungResPi.png)
+As previously shown (and below) in the absence of any control options, the pathogen destroys the crop. I believe this is what Kevin expects (the extent of the destruction is not well fitted I believe).
+
+![Figure 7. Default epidemic in the absence of control](figures/NoControl.png){ width=50% }
 
 ## Epidemic and control
 
+The use of fungicides and cultivar resistance is assumed to control the pathogen and lead to a large increase in HAD, and therefore yield.
 
+Clearly, the fungicide dose response curves are currently wrong.
+
+![Figure 8. Healthy area index when a fungicide is sprayed at 9 points through the season at varying doses](figures/FungDose.png){ width=50% }
+
+Kevin had found five values for the reduction of an avirulent pathogen on a resistant crop, purportedly relating to cultivar resistance ratings.
+
+|Cultivar resistance rating|Proportional reduction in life-history parameters|
+|--|--|
+|3|0.06|
+|4|0.16|
+|5|0.24|
+|6|0.3|
+|7|0.34|
+
+![Figure 9. Healthy area index at different levels of cultivar resistance](figures/CultResistance.png){ width=50% }
+
+## Selection
+
+I'm pretty sure the parameters for selection were made up. We have two main parameters to consider: 1) how much fungicide insensitivity reduces the effect of a fungicide, and 2) how much a virulence gene reduces the effect of a cultivar resistance gene. We are, as with all things here, assuming that any multiples of the cultivar resistance genes, fungicides, fungicide insensitivity genes, and virulence genes have the same effect.
+
+Looking at fungicide insensitivity, if the insensitivity reduces the effect of the fungicide by 75%, we get total insensitivity within a single year, which probably shouldn't be allowed.
+
+![Figure 10. Changing $\phi$ changes the selection for fungicide insensitivity](figures/FungResPi.png){ width=50% }
+
+Under each of the resistant cultivars, we can look and see how fast selection leads to resistance.
+
+![Figure 11. Selection for virulence under different cultivar resistance levels](figures/VirulenceSelection.png){ width=50% }
