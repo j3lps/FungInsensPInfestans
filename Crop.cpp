@@ -1,6 +1,5 @@
 #include "Crop.h"
 
-
 CCrop::CCrop(){
 	
 	healthyAreaIndex = 0.0;

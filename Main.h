@@ -14,7 +14,7 @@
 double processNumber;
 
 // TIME VARIABLES
-// How many time units in a season?
+// Time of the end of the season
 unsigned int tEOS;
 // Default time step
 double defTimeStep;
@@ -26,7 +26,7 @@ unsigned int TOTALGENOTYPES;
 unsigned int TOTALGENES;
 // The number of virulence genes
 unsigned int nVirulenceGenes;
-// The number of resistant genes
+// The number of fungicide resistance genes
 unsigned int nResistanceGenes;
 
 // This vector stores the mutation probability from genotype to genotype for a single diploid gene <parent> <offspring>
@@ -87,6 +87,10 @@ void setParameters();
 
 // Work out the total number of spores of each genotype, taking into account mutation
 void mutateOrDontIDontCare(const CPathogen&, std::vector<double>&);
+// New functions for calculating the infectoin efficiency, added by Joe 06-02-2019
+void newCalculateInfectionEfficiency(const std::vector<CFungicide>&);
+void newCalculateSporulationRate(const std::vector<CFungicide>&);
+void newCalculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the current infection efficiency, dependent on the fungicide dose
 void calculateInfectionEfficiency(const std::vector<CFungicide>&);
 void calculateSporulationRate(const std::vector<CFungicide>&);
@@ -203,9 +207,8 @@ std::vector< std::vector< double > > mutationMatrix;
 // The number of fungicides
 unsigned int nFungicides;
 
-// Fungicide spray times and doses - each spray consists of a spray time (time units), and a dose
-std::vector<std::pair<unsigned int, double> > sprayFung1;
-std::vector<std::pair<unsigned int, double> > sprayFung2;
+// For each fungicide, store the spray times and doses. <Fungicide><sprayIndex><time,dose>
+std::vector<std::vector<std::pair<unsigned int, double> > > sprayFung;
 
 // Whether each resistance gene confers resistance to each fungicide
 std::vector< std::vector< bool > > confersResistanceToFung;
@@ -216,8 +219,9 @@ double fungDecayRate;
 // Fungicide ~ infection efficiency parameters
 // Dominance of the fungicide resistance gene
 double fungResDom;
-// Shape of the curve determinng how much each genotype contributes to resistance
-double fungResPi;
+// Proportion by which a fungicide resistance gene reduces alpha - if fungResPi = 1, absolute insensitivity to the fungicide.
+std::vector<double> fungResPi; 
+
 // alphaMax is the maximum possible reduction in the infection efficiency
 std::vector<double> alphaMax;
 // kappa is the coefficient to the dose
