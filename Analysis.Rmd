@@ -1,0 +1,155 @@
+---
+title: "Kevin potato model summary"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r Includes,echo=FALSE,message=FALSE}
+require(deSolve)
+```
+
+I want to use this document to analyse what I think ought to be the model parameterisation. Some introductory aspects of the model can be found in 'Model Description.Rmd'.
+
+First I will specify some parameter values for how I think the model ought to be set up (completely off the top of my head).
+
+|**Parameter**|**Description**|**Old Value**|**New Value**|
+|------|------------------------------------|---|---|
+||**Crop parameters**|||
+|a|Maximum area index|6|6|
+|b|Slope of crop growth|90|90|
+|c|Mid-point of crop growth|2100|2100|
+|m|Mid-point of crop senesence|3850|3850|
+|n|Slope of crop senesence|80|80|
+|H0|Initial area index of crop|4e-10|4e-10|
+||**Pathogen parameters**|||
+|$\mu$|Latent period|50.66542|50.66542|
+|$\sigma$|Infectious period|102|102|
+|SR|Sporulation rate|8|2|
+|IE|Infection efficiency|0.01655833|0.01655833|
+||**Control parameters**|||
+|$\alpha_{Max}$|Asymptote of dose-response curve|1.0|0.6|
+|$\beta$|Slope of dose-response curve|5|5|
+|$\theta$|Proportional reduction due to a single resistance gene|Variable (see below)||
+||Fungicide decay rate|0.007967209|0.008|
+||**Resistance parameters**|||
+||Mutation rate|0.000001|0.000001|
+|fungResPi|Proportional reduction in $\alpha_{Max}$|0.5|0.5|
+|$\zeta$|Fitness cost of being virulent|0.002|0.002|
+|$\eta$|Fitness cost of fungicide insensitivity|0.002|0.002|
+||Dominance (of all traits)|0.5|0.5|
+
+## Crop parameter changes
+
+I'm going to leave the crop parameters as they are for now. I'm assuming Kevin fit this to some data at some point, or else it looked fine by eye.
+The only reason to possibly change it is if the severity or fungicide dose-response curves are in Julian days. Then the time units probably ought to be the same.
+
+## Pathogen parameters
+
+I'm assuming that Kevin found latent period and infectious periods from the literature. I don't know where he got sporulation rate or infection efficiency from. But I think it's reasonable to use the data in Garret & Mundt (2000), such that the rate of increase = 1 - IE \* SR / IP (see Segarra, et al., 2001). This gives us an estimate of the combined SR \* IE, from which we can choose reasonable values. I don't *think* this should affect the life-history parameters.
+
+```{r FitPathogen,echo=FALSE}
+# First set up the derivatives
+pathogenGrowth<-function(t,y,parms){
+    
+    with(as.list(c(y,parms)),{
+        
+        # Host growth:
+        # Calculate the explicit LAI
+        LAI = a / (1 + exp(-(t - c)/b))
+        # Calulate the explicit SAI
+        SAI = a / (1 + exp(-(t - m)/n))
+        # Calculate the growth rate
+        growthRate = (a * exp(-(t - c)/b)/((b*(1 + exp(-(t - c)/b)))*(1 + exp(-(t - c)/b))))/(LAI - SAI)
+        # Calculate the senesence rate
+        senesRate = (a * (exp(-(t - m)/n))/((n*(1 + exp(-(t - m)/n)))*(1 + exp(-(t - m)/n))))/(LAI - SAI)
+        dA = A * growthRate
+        dH = H * (growthRate - senesRate)
+        
+        # Primary spore influx - turn this off for this purpose
+        primaryInoc = 0# 0.01 * exp(-0.5 * ((t - 2100)/50)^2)
+        
+        # Calculate derivative of new latent lesions
+        derivNewLL = (primaryInoc + sR * I) * (1 - exp(-A)) * (H/A) * IE
+        # Adjust healthy area growth:
+        dH = dH - derivNewLL
+        # Derivative of latent period:
+        dL = derivNewLL - mu * L - senesRate * L
+        # Derivative of infectious period
+        dI = mu * L - sigma * I - senesRate * I
+        dR = sigma * I + senesRate * (H + L + I)
+        
+        return(list(c(dA,dH,dL,dI,dR)))
+    })
+    
+}
+
+maxTime = 3759
+init = c(A = 4.412073e-10,H = 4.412073e-10,L=0,I=0,R=0)
+params = c(a=6,b=90,c=2100,m=3850,n=80,sR=8,IE=0.01655833,mu=1/50.66542,sigma=1/102)
+
+# This data was read off a graph in Garrett & Mundt, 2000.
+# The potatoes were planted in 12th June 1997, and inoculated on 8 August 1997.
+# Using data from usclimatedata.com/climate/oregon/united-states/3207#, we have the following average temperature per month:
+OregonTemp = c((8.7+1.5)/2,(10.9+1.4)/2,(13.6+2.9)/2,(16.2+4.2)/2,(19.9+7.1)/2,(23.3+9.6)/2,(27.8+11.7)/2,(28+11.6)/2,(24.9+9.1)/2,(17.8+5.7)/2,(11.4+3.6)/2,(7.9+1.1)/2)
+OregonDates = seq(0,365-30,length.out=12)+15
+# With a sin curve, we can approximate daily temperatures using:
+plot((7 * sin(seq(0,2*pi,length.out=366)-2.1)+mean(OregonTemp))~seq(0,365),type="l",ylim=c(min(OregonTemp),max(OregonTemp)))
+points(OregonTemp~OregonDates)
+# Clearly this isn't perfect, but can be used to approximate the accumulated degree days between planting and innoculation.
+# Work out the time until inoculation in degree days:
+timePlanting = as.numeric(as.Date("12-06-1997",format="%d-%m-%Y") - as.Date("01-01-1997",format="%d-%m-%Y"))
+timeInoculation = as.numeric(as.Date("08-08-1997",format="%d-%m-%Y") - as.Date("01-01-1997",format="%d-%m-%Y"))
+timeEnd = as.numeric(as.Date("08-08-1997",format="%d-%m-%Y")+35 - as.Date("01-01-1997",format="%d-%m-%Y"))
+# Work out the time of inoculation and end in degree days
+timeInoculationDD = sum((7 * sin(seq(0,2*pi,length.out=366)[timePlanting:timeInoculation]-2.1)+mean(OregonTemp)))
+timeEndDD = timeInoculationDD + sum((7 * sin(seq(0,2*pi,length.out=366)[timeInoculation:timeEnd]-2.1)+mean(OregonTemp)))
+# This is the data read in from the paper
+observedData = c(1,5,40,90,99,100)
+observedTime = c(10,17,23,25,27,32)
+# Need to get the observed time in degree days
+observedTimeDD = sapply(observedTime,function(x) sum((7 * sin(seq(0,2*pi,length.out=366)[timePlanting:(timeInoculation+x)]-2.1)+mean(OregonTemp))))
+
+ssq<-function(parms){
+    
+    if(parms[1] > 0.1 | parms[1] < 0 | parms[2] < 0 | parms[3] > 1 | parms[3] < 0) return(NA)
+    
+    # Life-cycle parameters to fit:
+    params[["IE"]] = parms[1]
+    params[["sR"]] = parms[2]
+    
+    init = c(A = 4.412073e-10,H = 4.412073e-10,L=0,I=0,R=0)
+    # First run the crop until inoculation ()
+    output = as.data.frame(ode(y=init,parms=params,func=pathogenGrowth,times=seq(0,timeInoculationDD)))
+    
+    # Now inoculate and run the crop until the end of the observed data.
+    init = unlist(output[nrow(output),-1])
+    init[["L"]] = parms[3] * init[["H"]]
+    output = rbind(output[-nrow(output)],as.data.frame(ode(y=init,parms=params,func=pathogenGrowth,times=seq(floor(timeInoculationDD),timeEndDD))))
+    
+    output$Severity = 100.0 * (output$I+output$R) / (output$H + output$L + output$I + output$R)
+    
+    # Plot the simulated and observed severities
+    plot(output$Severity,type="l",xlab="Time (degree days)",ylab="Severity (%)",ylim=c(0,100))
+    points(observedData ~ observedTimeDD)
+    
+    simulatedSeverity = output$Severity[output$time %in% floor(observedTimeDD)]
+    
+    sumOfSquaredDifference = sum((simulatedSeverity - observedData)^2)
+    
+    return(sumOfSquaredDifference)
+}
+
+optim(par=c(params[["IE"]],params[["sR"]],0.01),fn=ssq)
+
+par(mar=c(5,4,1,1))
+plot(output$A~output$time,type="l",xlab="Time (degree days)",ylab="Area index")
+lines(output$H~output$time,col="darkgreen")
+lines(output$L~output$time,col="orange")
+lines(output$I~output$time,col="red")
+lines(output$R~output$time,col="gray")
+legend("topleft",c("Area index","Healthy area index","Latent","Infectious","Removed"),col=c(1,"darkgreen","orange","red","gray"),lty=1)
+
+```
+
+Clearly it doesn't matter what ratio of IE:SR is important (which makes the fit slightly harder).
