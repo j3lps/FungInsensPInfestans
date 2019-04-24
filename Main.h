@@ -87,10 +87,6 @@ void setParameters();
 void mutateOrDontIDontCare(const CPathogen&, std::vector<double>&);
 // New functions for calculating the infectoin efficiency, added by Joe 06-02-2019
 void newCalculateInfectionEfficiency(const std::vector<CFungicide>&);
-<<<<<<< HEAD
-=======
-void newCalculateSporulationRate(const std::vector<CFungicide>&);
->>>>>>> a1b4c4dd2a066e79cab6a46a46c6ba64a4b33eb6
 void newCalculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the current infection efficiency, dependent on the fungicide dose
 void calculateInfectionEfficiency(const std::vector<CFungicide>&);
@@ -217,11 +213,7 @@ double fungDecayRate;
 // Dominance of the fungicide resistance gene
 double fungResDom;
 // Proportion by which a fungicide resistance gene reduces alpha - if fungResPi = 1, absolute insensitivity to the fungicide.
-<<<<<<< HEAD
 std::vector<double> fungResPi;
-=======
-std::vector<double> fungResPi; 
->>>>>>> a1b4c4dd2a066e79cab6a46a46c6ba64a4b33eb6
 
 // alphaMax is the maximum possible reduction in the infection efficiency
 std::vector<double> alphaMax;
