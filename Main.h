@@ -50,11 +50,9 @@ std::vector<CFungicide> vecFungicide;
 
 // Adjusted infection efficiency and sporulation rate depending on resistance genes and fungicide dose
 std::vector<double> infectionEfficiency;
-std::vector<double> sporulationRate;
 std::vector<double> latentPeriod;
 // Base infection efficiency when virulence genes are taken into account - this stays constant throughout the sim
 std::vector<double> baseIE;
-std::vector<double> baseSR;
 std::vector<double> baseLP;
 
 // Iterate through a year
@@ -89,15 +87,10 @@ void setParameters();
 void mutateOrDontIDontCare(const CPathogen&, std::vector<double>&);
 // New functions for calculating the infectoin efficiency, added by Joe 06-02-2019
 void newCalculateInfectionEfficiency(const std::vector<CFungicide>&);
-void newCalculateSporulationRate(const std::vector<CFungicide>&);
 void newCalculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the current infection efficiency, dependent on the fungicide dose
 void calculateInfectionEfficiency(const std::vector<CFungicide>&);
-void calculateSporulationRate(const std::vector<CFungicide>&);
 void calculateLatentPeriod(const std::vector<CFungicide>&);
-// Deprecated function
-void oldCalculateSporulationRate(const std::vector<CFungicide>&);
-void oldCalculateInfectionEfficiency(const std::vector<CFungicide>&);
 // Calculate the base infection efficiency for each genotype according to virulence
 void calculateBaseIE();
 // Calculate the base sporulation rate for each genotype dependent on virulence
@@ -240,7 +233,6 @@ struct SDayResults{
 	std::vector<CPathogen> pathogenDensity;
 	std::vector<double> healthyAreaIndex;
 	std::vector<double> leafAreaIndex;
-	std::vector<double> tubarWeight;
 	std::vector< std::vector<double> > fungicideDose;
 	std::vector< std::vector< double > > geneFreq;
 	std::vector<double> totalDensity;
@@ -255,7 +247,6 @@ SDayResults DayResults;
 struct SYearResults{
 	std::vector<double> Year;
 	std::vector<std::vector<double> > geneFreq;
-	std::vector<double> tubarWeight;
 };
 
 SYearResults YearResults;

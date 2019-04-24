@@ -10,8 +10,6 @@ public:
 	double totalAreaIndex;
 	// Healthy leaf area index
 	double healthyAreaIndex;
-	// Tuber weight in grams per plant
-	double tuberWeight;
 
 	// Zero all elements
 	void zero();

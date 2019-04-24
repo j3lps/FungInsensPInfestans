@@ -45,13 +45,12 @@ void writeResultsToFile() {
 	std::ofstream myfile;
 	myfile.open("Year" + std::to_string(int(processNumber + 0.5)) + ".csv");
 	// Write a header
-	myfile << "Year, TubarWeight";
+	myfile << "Year";
 	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", Gene" << i;
 	myfile << "\n";
 	// Now write results
 	for (unsigned int yyyy = 0; yyyy != YearResults.Year.size(); ++yyyy) {
-		myfile << YearResults.Year[yyyy] << ", ";
-		myfile << YearResults.tubarWeight[yyyy];
+		myfile << YearResults.Year[yyyy];
 		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << YearResults.geneFreq[yyyy][i];
 		myfile << "\n";
 	}
@@ -61,7 +60,7 @@ void writeResultsToFile() {
 	// And also for the daily file
 	myfile.open("Day" + std::to_string(int(processNumber+0.5)) + ".csv");
 	// Write a header
-	myfile << "Year, DDay, TotalLeafArea, HealthyArea, TubarWeight, Severity";
+	myfile << "Year, DDay, TotalLeafArea, HealthyArea, Severity";
 	for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", FC" << iFC;
 	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", L" << i;
 	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", I" << i;
@@ -72,7 +71,7 @@ void writeResultsToFile() {
 	for (unsigned int counter = 0; counter != DayResults.Year.size(); ++counter) {
 		myfile << DayResults.Year[counter] << ", " << DayResults.DegreeDay[counter] << ", ";
 		myfile << DayResults.leafAreaIndex[counter] << ", " << DayResults.healthyAreaIndex[counter] << ", "
-			<< DayResults.tubarWeight[counter] << ", " << DayResults.severity[counter];
+			<< DayResults.severity[counter];
 		for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", " << DayResults.fungicideDose[counter][iFC];
 		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Latent[i];
 		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Infectious[i];
@@ -207,11 +206,9 @@ void setParameters() {
 	
 	// Infection efficiency and sporulation rate vectors (for each genotype)
 	baseIE.assign(TOTALGENOTYPES, defInfEff);
-	baseSR.assign(TOTALGENOTYPES, defSporRate);
 	baseLP.assign(TOTALGENOTYPES, latentLifespan);
 
 	infectionEfficiency.assign(TOTALGENOTYPES, defInfEff);
-	sporulationRate.assign(TOTALGENOTYPES, defSporRate);
 	latentPeriod.assign(TOTALGENOTYPES, latentLifespan);
 
 	// Proportion of spores leaving the field
@@ -266,7 +263,6 @@ void setParameters() {
 	// Functions that adjust the latent period, infection efficiency and sporulation rate for each genotype depending on the cultivar resistance
 	calculateBaseLP();
 	calculateBaseIE();
-	calculateBaseSR();
 
 }
 
@@ -562,8 +558,6 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 
 	// Calculate the infection efficiency of each genotype at t = tNow
 	newCalculateInfectionEfficiency(FU_IN);
-	// Re-calculate sporulation rate based on current fungicide dose
-	newCalculateSporulationRate(FU_IN);
 	// Calculate the latent period
 	newCalculateLatentPeriod(FU_IN);
 
@@ -653,7 +647,7 @@ void mutateOrDontIDontCare(const CPathogen& inPathogen, std::vector<double>& out
 				}
 			}
 
-			outSpores[jGeno] += infectiousLesions[iGeno] * sporulationRate[iGeno] * proportionjGeno;
+			outSpores[jGeno] += infectiousLesions[iGeno] * defSporRate * proportionjGeno;
 
 		}
 
@@ -702,49 +696,6 @@ void newCalculateInfectionEfficiency(const std::vector<CFungicide>& fungicides) 
 			proportionReduction *= (1 - alphaMax[iFung] * coefficient * (1 - exp(-kappa[iFung] * fungicides[iFung].currentDose)));
 		}
 		infectionEfficiency[iGeno] *= proportionReduction;
-	}
-}
-
-void newCalculateSporulationRate(const std::vector<CFungicide>& fungicides) {
-
-	// Set sporulation rate array back to default for every genotype
-	sporulationRate = baseSR;
-
-	// Loop through each genotype, and for each resistance genotype reduce the sporulation rate accordingly
-	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
-
-		double proportionReduction = 1.0;
-
-		// Loop through each fungicide
-		for (size_t iFung = 0; iFung != fungicides.size(); ++iFung) {
-
-			// This stores the part: (phi^nHomo * (1-(1-phi)*dom)^nHetero)
-			double coefficient = 1.0;
-			// The following genes are fungicide resistance genes
-			for (unsigned int iGene = nVirulenceGenes; iGene != TOTALGENES; ++iGene) {
-				// Work out the diploid for this gene
-				unsigned int genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
-				switch (genotype) {
-					// 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
-				case 0:
-					coefficient *= (1.0 - 0.0);
-					break;
-					// 1 = SR - partial reduction in sporulation rate by fungicide
-				case 1:
-
-					coefficient *= (1.0 - fungResPi[iFung] * fungResDom);
-
-					break;
-					// 2 = RR - no reduction in the sporulation rate
-				case 2:
-
-					coefficient *= (1.0 - fungResPi[iFung]);
-					break;
-				}
-			}
-			proportionReduction *= 1 - alphaMax[iFung] * coefficient * (1 - exp(-kappa[iFung] * fungicides[iFung].currentDose));
-		}
-		sporulationRate[iGeno] *= proportionReduction;
 	}
 }
 
@@ -859,75 +810,6 @@ void calculateBaseIE() {
 	}
 
 	printIE();
-
-}
-
-void calculateBaseSR() {
-
-	baseSR.assign(TOTALGENOTYPES, defSporRate);
-
-	// Loop through each genotype, and for each resistance genotype reduce the infection efficiency accordingly
-	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
-
-		// Calculate the fitness cost for this genotype
-		double fitnessCost = 1.0;
-
-		for (unsigned int iGene = 0; iGene != TOTALGENES; ++iGene) {
-
-			// Work out the diploid for this gene
-			unsigned int genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
-
-			// If a virulence gene, then account for reduction in infection efficiency for avirulent alleles
-			if (iGene < nVirulenceGenes) {
-
-				// Store the proportional reduction for this gene
-				double proportionReduction = 1.0;
-
-				switch (genotype) {
-					// 0 = AA - avirulent; sporulation rate is reduced
-				case 0:
-					if (cropReceptor[iGene]) proportionReduction *= (1 - AVIRReductionSR);
-					else proportionReduction *= 1.0;
-					break;
-					// 1 = Aa - partially virulent
-				case 1:
-					if (cropReceptor[iGene]) proportionReduction *= (1 - fCReductionSR * fCDomSR) * (1 - AVIRDomSR * AVIRReductionSR);
-					else proportionReduction *= (1 - fCReductionSR * fCDomSR);
-					break;
-					// 2 = aa - fully virulent; default sporulation rate
-				case 2:
-					if (cropReceptor[iGene]) proportionReduction *= (1 - fCReductionSR);
-					else proportionReduction *= (1 - fCReductionSR);
-					break;
-				}
-
-				baseSR[iGeno] *= proportionReduction;
-			}
-			// Otherwise account for fitness cost of having fungicide resistance
-			else {
-
-				switch (genotype) {
-					// 0 = SS - no fitness cost of having fungicide resistance
-				case 0:
-					break;
-					// 1 = SR - partial reduction in infection efficiency due to fitness cost
-				case 1:
-					fitnessCost *= (1 - fitnessCostSRDom * fitnessCostSR);
-					break;
-					// 2 = RR - full fitness cost of having fungicide resistance
-				case 2:
-					fitnessCost *= (1 - fitnessCostSR);
-					break;
-				}
-
-			}
-
-		}
-
-		baseSR[iGeno] *= fitnessCost;
-	}
-
-	printSR();
 
 }
 
@@ -1060,7 +942,6 @@ void createMutationMatrices() {
 void storeYearResults(unsigned int year) {
 
 	YearResults.Year.push_back(year);
-	YearResults.tubarWeight.push_back(oCrop.tuberWeight);
 	// Work out the frequency of each gene
 	std::vector<double> geneFreq(TOTALGENES, 0.0);
 	// Loop through each genotype, and add to each gene if heterozygote or resistant
@@ -1095,7 +976,6 @@ void storeResults(double tNow, unsigned int year) {
 	DayResults.pathogenDensity.push_back(oPathogen);
 	DayResults.healthyAreaIndex.push_back(oCrop.healthyAreaIndex);
 	DayResults.leafAreaIndex.push_back(oCrop.totalAreaIndex);
-	DayResults.tubarWeight.push_back(oCrop.tuberWeight);
 	DayResults.severity.push_back(calcSeverity());
 	std::vector<double> tempDose;
 	for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) tempDose.push_back(vecFungicide[iFC].currentDose);
@@ -1155,13 +1035,6 @@ void resetBwYears() {
 		primaryInocProp.assign(TOTALGENOTYPES, 0.0);
 	}
 
-	//primaryInocProp = oPathogen.Infectious;
-	//double totalInoc = 0.0;
-	//for (std::vector<double>::const_iterator cVecIt = oPathogen.Infectious.begin(); cVecIt != oPathogen.Infectious.end(); ++cVecIt){
-	//	totalInoc += *cVecIt;
-	//}
-	//for (std::vector<double>::iterator vecIt = primaryInocProp.begin(); vecIt != primaryInocProp.end(); ++vecIt) *vecIt /= totalInoc;
-
 	// Now rezero the pathogen, and crop
 	oPathogen.zero();
 	oCrop.zero();
@@ -1195,22 +1068,6 @@ void printLP() {
 	for (std::vector<double>::const_iterator cVecIt = baseLP.begin(); cVecIt != baseLP.end(); ++cVecIt) {
 
 		myFile << cVecIt - baseLP.begin() << ", " << *cVecIt << "\n";
-
-	}
-	myFile.close();
-
-}
-
-void printSR() {
-
-	// Open a file
-	std::ofstream myFile("SR.csv", std::ios::trunc);
-
-	// Write a header
-	myFile << "Genotype, SR" << std::endl;
-	for (std::vector<double>::const_iterator cVecIt = baseSR.begin(); cVecIt != baseSR.end(); ++cVecIt) {
-
-		myFile << cVecIt - baseSR.begin() << ", " << *cVecIt << "\n";
 
 	}
 	myFile.close();
