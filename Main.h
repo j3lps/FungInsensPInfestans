@@ -247,6 +247,8 @@ SDayResults DayResults;
 struct SYearResults{
 	std::vector<double> Year;
 	std::vector<std::vector<double> > geneFreq;
+	std::vector<double> AUDPC;
+	std::vector<double> HAD;
 };
 
 SYearResults YearResults;

@@ -13,13 +13,13 @@ int main(int argc, char**argv) {
 	setParameters();
 
 	// Timed so that healthy area finishes at 1.3 leaf index. was originally 2750, we updated host growth
-	tEOS = 2318; // default is 3759
+	tEOS = 1708; // default is 3759
 
 	// Initialize densities
 	initialize();
 
 	// Iterate over the number of years required
-	for (unsigned int year = 1; year != 10; ++year) {
+	for (unsigned int year = 1; year != 50; ++year) {
 
 		// Store the year's initial conditions
 		storeResults(0.0, year);
@@ -39,58 +39,12 @@ int main(int argc, char**argv) {
 	return 0;
 }
 
-void writeResultsToFile() {
-
-	// Create and open a file
-	std::ofstream myfile;
-	myfile.open("Year" + std::to_string(int(processNumber + 0.5)) + ".csv");
-	// Write a header
-	myfile << "Year";
-	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", Gene" << i;
-	myfile << "\n";
-	// Now write results
-	for (unsigned int yyyy = 0; yyyy != YearResults.Year.size(); ++yyyy) {
-		myfile << YearResults.Year[yyyy];
-		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << YearResults.geneFreq[yyyy][i];
-		myfile << "\n";
-	}
-	// Close file
-	myfile.close();
-
-	// And also for the daily file
-	myfile.open("Day" + std::to_string(int(processNumber+0.5)) + ".csv");
-	// Write a header
-	myfile << "Year, DDay, TotalLeafArea, HealthyArea, Severity";
-	for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", FC" << iFC;
-	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", L" << i;
-	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", I" << i;
-	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", GF" << i;
-	myfile << ", TotalLatent, TotalInf, Total";
-	myfile << "\n";
-	// Now write results
-	for (unsigned int counter = 0; counter != DayResults.Year.size(); ++counter) {
-		myfile << DayResults.Year[counter] << ", " << DayResults.DegreeDay[counter] << ", ";
-		myfile << DayResults.leafAreaIndex[counter] << ", " << DayResults.healthyAreaIndex[counter] << ", "
-			<< DayResults.severity[counter];
-		for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", " << DayResults.fungicideDose[counter][iFC];
-		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Latent[i];
-		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Infectious[i];
-		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << DayResults.geneFreq[counter][i];
-		myfile << ", " << DayResults.totalLatent[counter] << ", " << DayResults.totalInfectious[counter] << ", " << DayResults.totalDensity[counter];
-		myfile << "\n";
-
-	}
-	// Close file
-	myfile.close();
-
-}
-
 void initialize() {
 
 	oPathogen.zero();
 	primaryInocProp.assign(TOTALGENOTYPES, 0.0);
 
-	// Put all density as the fully avirulent, fully susceptible individual. Set to zero if you don't want any inoculum.
+	// Put all density as the fully avirulent, fully susceptible individual.
 	primaryInocProp[0] = 1.0;
 
 	oCrop.totalAreaIndex = oCrop.healthyAreaIndex = cropStartingArea;
@@ -100,7 +54,7 @@ void initialize() {
 
 void setParameters() {
 
-	defTimeStep = 0.1;
+	defTimeStep = 1;
 
 	// Specify the number of virulence genes the pathogen has. This is the same as the number of resistance genes in the crop.
 	nVirulenceGenes = 0; //default  3 QTL
@@ -113,26 +67,35 @@ void setParameters() {
 	CPathogen::TOTALGENOTYPES = TOTALGENOTYPES;
 
 	// Crop starting density - set so that maximum healthy area = 6.044 - same as Femke's. was 0.0000000663
-	cropStartingArea = 1e-6-1e-10;//4.412073e-10;// A0. Femke's original version was 4.412073e-10, though that was for the growth model that has been parsed out.
+	cropStartingArea = 8e-4;//4.412073e-10;// A0. Femke's original version was 4.412073e-10, though that was for the growth model that has been parsed out.
 	aCropParam = 6;//default is 6, max canopy area. 
-	bCropParam = 0.01; //default is 90
-	cCropParam = 0.01; //default 2100
-	mCropParam = 1e-6; //default is 3850 
-	nCropParam = 1e-10; //default is 80
+	bCropParam = 90; //default is 90
+	cCropParam = 800; //default 2100
+	mCropParam = 1608; //default is 3850 
+	nCropParam = 80; //default is 80
 
 	// Dictate whether the crop has receptors against each of the virulence genes
 	// If it does and the pathogen is avirulent then the IE and LP are reduced
 	// If the cultivar has receptor and the pathogen is virulent then the IE and LP are not reduced
 	// If the cultivar does not have receptor the virulent have a fitness cost
-	cropReceptor.assign(nVirulenceGenes, true);
+	cropReceptor.assign(nVirulenceGenes, false);
+
+	// Pathogen paramters
+	
+	// Quantity of primary inoculum
+	primaryInoculum = 1.0;
+	// Shape of primary inoculum curve (k)
+	PIxi = 3;
+	// Another shape of primary inoculum curve (theta)
+	PIb = 100;
 
 	// Specify the number of fungicides
 	nFungicides = 1;
 	// Specify the spray times:
-	std::vector<double> sprayTimes; sprayTimes.push_back(988); sprayTimes.push_back(1140); sprayTimes.push_back(1273); 
-									sprayTimes.push_back(1406); sprayTimes.push_back(1596); sprayTimes.push_back(1710);
+	std::vector<double> sprayTimes; sprayTimes.push_back(728); sprayTimes.push_back(840); sprayTimes.push_back(938); 
+									sprayTimes.push_back(1036); sprayTimes.push_back(1176); sprayTimes.push_back(1260);
 	// Specify the dose of each fungicide - normally the dose applied is the same each spray:
-	std::vector<double> dose; for(unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(2.0);
+	std::vector<double> dose; for (unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(1.6 * 0.1 * processNumber);// 1.6 * 0.1 * std::div(processNumber, 5).quot);
 	// Now create the spray program for each fungicide. You can adjust this manually later if you want.
 	for (unsigned int iF = 0; iF != nFungicides; ++iF) {
 		std::vector<std::pair<unsigned int, double> > tempVecPair;
@@ -144,15 +107,15 @@ void setParameters() {
 	}
 
 	// Fungicide ~ infection efficiency parameters
-	alphaMax.assign(nFungicides, 1.0);      // default is 1.0, numbers above 1 may not be biologically realistic.  
-	kappa.assign(nFungicides, 3.57);			// from LINK data, default is 5, determines the shape of the exponential decay curve. 
+	alphaMax.assign(nFungicides, 1.0);//0.25 * std::div(processNumber,5).rem);      // default is 1.0, numbers above 1 will not be biologically realistic.  
+	kappa.assign(nFungicides, 5.98); //5.98 * 0.25 * std::div(processNumber, 5).rem
 	
 	// Decide, for each fungicide resistance gene, whether it confers resistance to each fungicide -- Don't think we need this - should just be fungResPi = 0.0
 	confersResistanceToFung.assign(nResistanceGenes, std::vector<bool>(nFungicides, true));
 
 	// survival to next season
 	Vtnu = 20;		//default is 20
-	Vtt0 = 2118;   // 200gdd, 2 weeks, before burnoff of crop. 
+	Vtt0 = 1600;   // 200gdd, 2 weeks, before burnoff of crop. 
 
 	// Natural mortality rates for latent and infectoius lesions
 	latentMortalityRate = 0.0;     //default is 0
@@ -164,10 +127,10 @@ void setParameters() {
 	infectiousLifespan = 100.0;  //default is 102
 
 	// Default sporulation rate, Rho0. 
-	defSporRate = 8; // default is 8
+	defSporRate = 200; // default is 8
 
 	// Default infection efficiency
-	defInfEff = 0.0165 * 2.47 * 4.09 * 2.22; //default 0.01655833   
+	defInfEff = 0.0165 * 0.018 * 1.128817; //Llanilar on Shepody: 0.0165 * 0.018 * 1.128817 * 1.13791;
 
 	/// theta - 0.636 for resistance
 	AVIRReductionSR = 0.0; // Proportional reduction in sporulation rate as a result of being avirulent
@@ -247,15 +210,15 @@ void setParameters() {
 	}
 
 	// Mutation rate of a single allele. Normally either 0.000001 or 0. 
-	mutationRateFungR = 0.00000000001;
+	mutationRateFungR = 1e-6;
 	mutationRateVir = 0.0;
 
-	fungResPi.assign(nFungicides, 0.5);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain.
+	fungResPi.assign(nFungicides, 1.0);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain.
 
 	fungResDom = 0.5; //in QTL model this is dominance, default is 0.5 (QTL model), based on literature. In allele model it is not dominance but expression level, which is 1.0 by default. 
 
 	// Decay rate of the fungicide, 6 Jdays. 
-	fungDecayRate = 0.01; // default is 0.007967209, 6 julian days.
+	fungDecayRate = 0.08632; // default is 0.007967209, 6 julian days.
 	
 	// Create a matrix specifying mutation between different genotypes
 	createMutationMatrices();
@@ -546,14 +509,13 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 		totalCropArea += PA_IN.Infectious[iGeno];
 	}
 
-	// Work out growth rate and senesence rate of leaves
-	double LAI = aCropParam * mCropParam * exp(bCropParam * tNow) / (aCropParam + mCropParam * (exp(bCropParam * tNow) - 1));
-	double SAI = aCropParam * nCropParam * exp(cCropParam * tNow) / (aCropParam + nCropParam * (exp(cCropParam * tNow) - 1));
-	double growthRate = bCropParam * LAI * (1 - LAI / aCropParam);
-	double senesRate = cCropParam * SAI * (1 - SAI / aCropParam);
+	double LAI = aCropParam / (1 + exp(-(tNow - cCropParam) / bCropParam));
+	double SAI = aCropParam / (1 + exp(-(tNow - mCropParam) / nCropParam));
+	double growthRate = ((aCropParam * exp(-(tNow - cCropParam) / bCropParam)) / (bCropParam * (1 + exp(-(tNow - cCropParam) / bCropParam)) * (1 + exp(-(tNow - cCropParam) / bCropParam)))) / (LAI - SAI);
+	double senesRate = ((aCropParam * exp(-(tNow - mCropParam) / nCropParam)) / (nCropParam * (1 + exp(-(tNow - mCropParam) / nCropParam)) * (1 + exp(-(tNow - mCropParam) / nCropParam)))) / (LAI - SAI);
 
-	HA_DV.totalAreaIndex += growthRate;
-	HA_DV.healthyAreaIndex += growthRate;
+	HA_DV.totalAreaIndex += growthRate * HA_IN.totalAreaIndex;;
+	HA_DV.healthyAreaIndex += growthRate * HA_IN.totalAreaIndex;;
 	HA_DV.healthyAreaIndex -= senesRate * HA_IN.healthyAreaIndex;
 
 	// Calculate the infection efficiency of each genotype at t = tNow
@@ -570,9 +532,8 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 		FU_DV[i].currentDose -= fungDecayRate * FU_IN[i].currentDose;
 	}
 
-	// Calculate the total amount of primary inoculum at tNow 
-	//double primaryInoculum = PIxi * tNow * tNow * exp(-PIb * tNow); // beta distribution for release, old.
-	double primaryInoculum = 0.0001 * exp(-0.5*pow(((tNow - 500) / 50), 2));// normal distribution for release, new. default is 0.01*exp(-0.5*pow(((tNow-2100)/50),2))
+	// Calculate the total amount of primary inoculum at tNow - gamma distribution multiplied by pInoc
+	double pI = primaryInoculum * pow(tNow,PIxi-1) * exp(-tNow / PIb) / (tgamma(PIxi) * pow(PIb,PIxi));
 
 	// Calculate the deposition probability
 	double depoProb = (1 - propSporesLeavingField) * (1 - exp(-HA_IN.totalAreaIndex));
@@ -583,16 +544,11 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 		// Store a proportion of spores for the next season // TODO: Make these parameters into global parameters
 		PA_DV.sporesEnteringOWPool[iGeno] += secondarySpores[iGeno] / (1.0 + exp((-(tNow - Vtt0)) / Vtnu));
 
-		// New latent from primary inoculum // TODO: What if totalCropArea = 0.0;
-		double newPrimLatentThisGeno = depoProb * primaryInoculum * primaryInocProp[iGeno] * HA_IN.healthyAreaIndex / HA_IN.totalAreaIndex * infectionEfficiency[iGeno];
-		PA_DV.Latent[iGeno] += newPrimLatentThisGeno;
+		// New latent from primary inoculum
+		double newLatentThisGeno = depoProb * (pI * primaryInocProp[iGeno] + secondarySpores[iGeno]) * HA_IN.healthyAreaIndex / HA_IN.totalAreaIndex * infectionEfficiency[iGeno];
+		PA_DV.Latent[iGeno] += newLatentThisGeno;
 		// Remove this area from the healthy area
-		HA_DV.healthyAreaIndex -= newPrimLatentThisGeno;
-
-		// New latent lesions from secondary infection
-		double newSecondLatentThisGeno = depoProb * HA_IN.healthyAreaIndex / HA_IN.totalAreaIndex * infectionEfficiency[iGeno] * secondarySpores[iGeno];
-		PA_DV.Latent[iGeno] += newSecondLatentThisGeno;
-		HA_DV.healthyAreaIndex -= newSecondLatentThisGeno;
+		HA_DV.healthyAreaIndex -= newLatentThisGeno;
 
 		// Infectious from latent - includes a fitness cost to latent period
 		PA_DV.Latent[iGeno] -= PA_IN.Latent[iGeno] / latentPeriod[iGeno];
@@ -809,7 +765,7 @@ void calculateBaseIE() {
 		baseIE[iGeno] *= fitnessCost;
 	}
 
-	printIE();
+	//printIE();
 
 }
 
@@ -876,7 +832,7 @@ void calculateBaseLP() {
 		baseLP[iGeno] *= fitnessCost;
 	}
 
-	printLP();
+	//printLP();
 
 }
 
@@ -966,7 +922,16 @@ void storeYearResults(unsigned int year) {
 	}
 	if (totalDensity > 0.0) for (unsigned int i = 0; i != TOTALGENES; ++i) geneFreq[i] /= totalDensity;
 	YearResults.geneFreq.push_back(geneFreq);
-
+	// Calculate the HAD for this year
+	double sumHAI = 0.0;
+	for (std::size_t iDD = 0; iDD != DayResults.healthyAreaIndex.size(); ++iDD) if (DayResults.Year[iDD] == year) sumHAI += DayResults.healthyAreaIndex[iDD];
+	double HAD = sumHAI / 14; // Dividing by 14 to convert from degree days to real days
+	YearResults.HAD.push_back(HAD);
+	// Calculate the AUDPC for this year - sum of severity
+	double sumSeverity = 0.0;
+	for (std::size_t iDD = 0; iDD != DayResults.severity.size(); ++iDD) if(DayResults.Year[iDD] == year) sumSeverity += DayResults.severity[iDD];
+	double AUDPC = 100.0 * sumSeverity / 14; // Dividing by 14 to convert from degree days to real days
+	YearResults.AUDPC.push_back(AUDPC);
 }
 
 void storeResults(double tNow, unsigned int year) {
@@ -1042,38 +1007,6 @@ void resetBwYears() {
 
 }
 
-void printIE() {
-
-	// Open a file
-	std::ofstream myFile("IE.csv", std::ios::trunc);
-
-	// Write a header
-	myFile << "Genotype, IE" << std::endl;
-	for (std::vector<double>::const_iterator cVecIt = baseIE.begin(); cVecIt != baseIE.end(); ++cVecIt) {
-
-		myFile << cVecIt - baseIE.begin() << ", " << *cVecIt << "\n";
-
-	}
-	myFile.close();
-
-}
-
-void printLP() {
-
-	// Open a file
-	std::ofstream myFile("LP.csv", std::ios::trunc);
-
-	// Write a header
-	myFile << "Genotype, LP" << std::endl;
-	for (std::vector<double>::const_iterator cVecIt = baseLP.begin(); cVecIt != baseLP.end(); ++cVecIt) {
-
-		myFile << cVecIt - baseLP.begin() << ", " << *cVecIt << "\n";
-
-	}
-	myFile.close();
-
-}
-
 double calcSeverity() {
 
 	double severity;
@@ -1090,11 +1023,62 @@ double calcSeverity() {
 
 	if (oCrop.totalAreaIndex <= 0.0) {
 		std::cerr << "Trying to calculate severity when totalAreaIndex is zero. Returning zero." << std::endl;
+		return(0.0);
 	}
 	else { 
 		severity = infected / total; 
 	}
 
 	return severity;
+
+}
+
+void writeResultsToFile() {
+
+	// Create and open a file
+	std::ofstream myfile;
+	myfile.open("Year" + std::to_string(int(processNumber + 0.5)) + ".csv");
+	// Write a header
+	myfile << "Year";
+	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", Gene" << i;
+	myfile << ", HAD";
+	myfile << ", AUDPC";
+	myfile << "\n";
+	// Now write results
+	for (unsigned int yyyy = 0; yyyy != YearResults.Year.size(); ++yyyy) {
+		myfile << YearResults.Year[yyyy];
+		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << YearResults.geneFreq[yyyy][i];
+		myfile << ", " << YearResults.HAD[yyyy];
+		myfile << ", " << YearResults.AUDPC[yyyy];
+		myfile << "\n";
+	}
+	// Close file
+	myfile.close();
+
+	// And also for the daily file
+	myfile.open("Day" + std::to_string(int(processNumber + 0.5)) + ".csv");
+	// Write a header
+	myfile << "Year, DDay, TotalLeafArea, HealthyArea, Severity";
+	for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", FC" << iFC;
+	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", L" << i;
+	for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", I" << i;
+	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", GF" << i;
+	myfile << ", TotalLatent, TotalInf, Total";
+	myfile << "\n";
+	// Now write results
+	for (unsigned int counter = 0; counter != DayResults.Year.size(); ++counter) {
+		myfile << DayResults.Year[counter] << ", " << DayResults.DegreeDay[counter] << ", ";
+		myfile << DayResults.leafAreaIndex[counter] << ", " << DayResults.healthyAreaIndex[counter] << ", "
+			<< DayResults.severity[counter];
+		for (unsigned int iFC = 0; iFC != nFungicides; ++iFC) myfile << ", " << DayResults.fungicideDose[counter][iFC];
+		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Latent[i];
+		for (unsigned int i = 0; i != TOTALGENOTYPES; ++i) myfile << ", " << DayResults.pathogenDensity[counter].Infectious[i];
+		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << DayResults.geneFreq[counter][i];
+		myfile << ", " << DayResults.totalLatent[counter] << ", " << DayResults.totalInfectious[counter] << ", " << DayResults.totalDensity[counter];
+		myfile << "\n";
+
+	}
+	// Close file
+	myfile.close();
 
 }
