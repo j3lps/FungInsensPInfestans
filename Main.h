@@ -11,7 +11,7 @@
 #include "Crop.h"
 
 // SIMULATION VARIABLES
-double processNumber;
+unsigned int processNumber;
 
 // TIME VARIABLES
 // Time of the end of the season
@@ -203,7 +203,7 @@ unsigned int nFungicides;
 // For each fungicide, store the spray times and doses. <Fungicide><sprayIndex><time,dose>
 std::vector<std::vector<std::pair<unsigned int, double> > > sprayFung;
 
-// Whether each resistance gene confers resistance to each fungicide
+// Whether each resistance gene confers resistance to each fungicide <Gene><Fungicide>
 std::vector< std::vector< bool > > confersResistanceToFung;
 
 // Decay rate of the fungicide
@@ -249,6 +249,7 @@ struct SYearResults{
 	std::vector<std::vector<double> > geneFreq;
 	std::vector<double> AUDPC;
 	std::vector<double> HAD;
+	std::vector<double> Severity;
 };
 
 SYearResults YearResults;

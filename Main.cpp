@@ -7,19 +7,19 @@ int main(int argc, char**argv) {
 		if (!(ss >> processNumber)) std::cerr << "Invalid input " << argv[argc - 1] << "\n";
 		std::cout << "Running simulation " << processNumber << std::endl;
 	}
-	else processNumber = 4.0;
+	else processNumber = 0;
 
 	// Set all the parameters for this simulation
 	setParameters();
 
 	// Timed so that healthy area finishes at 1.3 leaf index. was originally 2750, we updated host growth
-	tEOS = 1708; // default is 3759
+	tEOS = 1400; // 1708 for Llanilar; 1408 for Auchincruive
 
 	// Initialize densities
 	initialize();
 
 	// Iterate over the number of years required
-	for (unsigned int year = 1; year != 50; ++year) {
+	for (unsigned int year = 1; year != 101; ++year) {
 
 		// Store the year's initial conditions
 		storeResults(0.0, year);
@@ -67,12 +67,12 @@ void setParameters() {
 	CPathogen::TOTALGENOTYPES = TOTALGENOTYPES;
 
 	// Crop starting density - set so that maximum healthy area = 6.044 - same as Femke's. was 0.0000000663
-	cropStartingArea = 8e-4;//4.412073e-10;// A0. Femke's original version was 4.412073e-10, though that was for the growth model that has been parsed out.
-	aCropParam = 6;//default is 6, max canopy area. 
-	bCropParam = 90; //default is 90
-	cCropParam = 800; //default 2100
-	mCropParam = 1608; //default is 3850 
-	nCropParam = 80; //default is 80
+	cropStartingArea = 1.15e-2; //5e-3 LLanilar; 1.15e-2 Auchincruive
+	aCropParam = 6;//6 Llanilar; 6 Auchincruive
+	bCropParam = 90; //90 Llanilar; 90 Auchincruive
+	cCropParam = 560; //633 Llanilar; 560 Auchincruive
+	mCropParam = 1650; //1900 Llanilar; 1650 Auchincruive
+	nCropParam = 80; //80 Llanilar; 80 Auchincruive
 
 	// Dictate whether the crop has receptors against each of the virulence genes
 	// If it does and the pathogen is avirulent then the IE and LP are reduced
@@ -92,10 +92,17 @@ void setParameters() {
 	// Specify the number of fungicides
 	nFungicides = 1;
 	// Specify the spray times:
-	std::vector<double> sprayTimes; sprayTimes.push_back(728); sprayTimes.push_back(840); sprayTimes.push_back(938); 
-									sprayTimes.push_back(1036); sprayTimes.push_back(1176); sprayTimes.push_back(1260);
+	std::vector<double> sprayTimes;
+	// Llanilar 7-day interval spray program:
+	//sprayTimes.push_back(728); sprayTimes.push_back(840); sprayTimes.push_back(938); sprayTimes.push_back(1036); sprayTimes.push_back(1176); sprayTimes.push_back(1260);
+	// Auchincruive 7-day interval spray program:
+	//sprayTimes.push_back(546); sprayTimes.push_back(644); sprayTimes.push_back(742); sprayTimes.push_back(840); sprayTimes.push_back(924); sprayTimes.push_back(1036); sprayTimes.push_back(1134);
+	// Modified Auchincruive spray program:
+	sprayTimes.push_back(700); sprayTimes.push_back(750); sprayTimes.push_back(800); sprayTimes.push_back(850);
+	sprayTimes.push_back(900); sprayTimes.push_back(950); sprayTimes.push_back(1000); sprayTimes.push_back(1050); sprayTimes.push_back(1100);
+	sprayTimes.push_back(1150); sprayTimes.push_back(1200); sprayTimes.push_back(1250); sprayTimes.push_back(1300); sprayTimes.push_back(1350);
 	// Specify the dose of each fungicide - normally the dose applied is the same each spray:
-	std::vector<double> dose; for (unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(1.6 * 0.1 * processNumber);// 1.6 * 0.1 * std::div(processNumber, 5).quot);
+	std::vector<double> dose; for (unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(1.6);// 1.6 * std::div(processNumber,3).quot
 	// Now create the spray program for each fungicide. You can adjust this manually later if you want.
 	for (unsigned int iF = 0; iF != nFungicides; ++iF) {
 		std::vector<std::pair<unsigned int, double> > tempVecPair;
@@ -108,10 +115,13 @@ void setParameters() {
 
 	// Fungicide ~ infection efficiency parameters
 	alphaMax.assign(nFungicides, 1.0);//0.25 * std::div(processNumber,5).rem);      // default is 1.0, numbers above 1 will not be biologically realistic.  
-	kappa.assign(nFungicides, 5.98); //5.98 * 0.25 * std::div(processNumber, 5).rem
-	
-	// Decide, for each fungicide resistance gene, whether it confers resistance to each fungicide -- Don't think we need this - should just be fungResPi = 0.0
+	kappa.assign(nFungicides, 5.86); //5.86 * 0.25 * std::div(processNumber, 5).rem
+	// Make the 2nd fungicide less effective
+	if(nFungicides == 2) alphaMax[1] = 0.5;
+
+	// Decide, for each fungicide resistance gene, whether it confers resistance to each fungicide
 	confersResistanceToFung.assign(nResistanceGenes, std::vector<bool>(nFungicides, true));
+	if(nFungicides == 2) confersResistanceToFung[0][1] = false;
 
 	// survival to next season
 	Vtnu = 20;		//default is 20
@@ -130,7 +140,8 @@ void setParameters() {
 	defSporRate = 200; // default is 8
 
 	// Default infection efficiency
-	defInfEff = 0.0165 * 0.018 * 1.128817; //Llanilar on Shepody: 0.0165 * 0.018 * 1.128817 * 1.13791;
+	std::vector<double> res; res.push_back(1.15); res.push_back(1.0); res.push_back(0.8); //res[std::div(processNumber, 3).rem]
+	defInfEff = 0.0165 * 0.0136 * res[std::div(processNumber, 3).rem];// IE: 0.0165; zeta: 0.01373 (adjusted down to 0.01 to ensure sev < 1% at end of season); 1.1526 Shepody, 1.0 Lady Balfour, 0.8 Sarpo Mira; 1.122 Llanilar
 
 	/// theta - 0.636 for resistance
 	AVIRReductionSR = 0.0; // Proportional reduction in sporulation rate as a result of being avirulent
@@ -210,10 +221,10 @@ void setParameters() {
 	}
 
 	// Mutation rate of a single allele. Normally either 0.000001 or 0. 
-	mutationRateFungR = 1e-6;
+	mutationRateFungR = 1e-10; //1e-10
 	mutationRateVir = 0.0;
 
-	fungResPi.assign(nFungicides, 1.0);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain.
+	fungResPi.assign(nFungicides, 0.6);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
 
 	fungResDom = 0.5; //in QTL model this is dominance, default is 0.5 (QTL model), based on literature. In allele model it is not dominance but expression level, which is 1.0 by default. 
 
@@ -541,7 +552,7 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 	// Loop through the genotypes and calculate change in the density of lesions
 	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
 
-		// Store a proportion of spores for the next season // TODO: Make these parameters into global parameters
+		// Store a proportion of spores for the next season
 		PA_DV.sporesEnteringOWPool[iGeno] += secondarySpores[iGeno] / (1.0 + exp((-(tNow - Vtt0)) / Vtnu));
 
 		// New latent from primary inoculum
@@ -623,14 +634,15 @@ void newCalculateInfectionEfficiency(const std::vector<CFungicide>& fungicides) 
 		// Loop through each fungicide
 		for (size_t iFung = 0; iFung != fungicides.size(); ++iFung) {
 
-			// This stores the part: (phi^nHomo * (1-(1-phi)*dom)^nHetero)
+			// This stores the consequence of resistance
 			double coefficient = 1.0;
 
-			// The following genes are fungicide resistance genes
-			// N.B. This is not meant to go from zero, unless there are no virulence genes. It is correct to go from nVirulenceGenes.
+			// The following genes are fungicide resistance genes. N.B. This is not meant to go from zero, unless there are no virulence genes. It is correct to go from nVirulenceGenes.
 			for (unsigned int iGene = nVirulenceGenes; iGene != TOTALGENES; ++iGene) {
 				// Work out the diploid for this gene
-				unsigned int genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
+				unsigned int genotype = 0;
+				// Only work out the genotype if this gene confers resistance to this fungicide, otherwise it's susceptible
+				if(confersResistanceToFung[iGene-nVirulenceGenes][iFung]) genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
 				switch (genotype) {
 					// 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
 				case 0:
@@ -668,12 +680,14 @@ void newCalculateLatentPeriod(const std::vector<CFungicide>& fungicides) {
 		// Loop through each fungicide
 		for (size_t iFung = 0; iFung != fungicides.size(); ++iFung) {
 
-			// This stores the part: (phi^nHomo * (1-(1-phi)*dom)^nHetero)
+			// This stores the consequence of resistance
 			double coefficient = 1.0;
 			// The following genes are fungicide resistance genes
 			for (unsigned int iGene = nVirulenceGenes; iGene != TOTALGENES; ++iGene) {
 				// Work out the diploid for this gene
-				unsigned int genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
+				unsigned int genotype = 0;
+				// Only work out the genotype if this gene confers resistance to this fungicide, otherwise it's susceptible
+				if (confersResistanceToFung[iGene - nVirulenceGenes][iFung]) genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
 				switch (genotype) {
 					// 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
 				case 0:
@@ -932,6 +946,8 @@ void storeYearResults(unsigned int year) {
 	for (std::size_t iDD = 0; iDD != DayResults.severity.size(); ++iDD) if(DayResults.Year[iDD] == year) sumSeverity += DayResults.severity[iDD];
 	double AUDPC = 100.0 * sumSeverity / 14; // Dividing by 14 to convert from degree days to real days
 	YearResults.AUDPC.push_back(AUDPC);
+	// Get the end of year severity
+	YearResults.Severity.push_back(*(DayResults.severity.end()-1));
 }
 
 void storeResults(double tNow, unsigned int year) {
@@ -1037,19 +1053,18 @@ void writeResultsToFile() {
 
 	// Create and open a file
 	std::ofstream myfile;
-	myfile.open("Year" + std::to_string(int(processNumber + 0.5)) + ".csv");
+	myfile.open("Year" + std::to_string(processNumber) + ".csv");
 	// Write a header
 	myfile << "Year";
 	for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", Gene" << i;
-	myfile << ", HAD";
-	myfile << ", AUDPC";
-	myfile << "\n";
+	myfile << ", HAD, AUDPC, Severity\n";
 	// Now write results
 	for (unsigned int yyyy = 0; yyyy != YearResults.Year.size(); ++yyyy) {
 		myfile << YearResults.Year[yyyy];
 		for (unsigned int i = 0; i != TOTALGENES; ++i) myfile << ", " << YearResults.geneFreq[yyyy][i];
 		myfile << ", " << YearResults.HAD[yyyy];
 		myfile << ", " << YearResults.AUDPC[yyyy];
+		myfile << ", " << YearResults.Severity[yyyy];
 		myfile << "\n";
 	}
 	// Close file
