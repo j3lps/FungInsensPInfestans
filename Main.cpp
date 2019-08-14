@@ -13,7 +13,7 @@ int main(int argc, char**argv) {
 	setParameters();
 
 	// Timed so that healthy area finishes at 1.3 leaf index. was originally 2750, we updated host growth
-	tEOS = 1400; // 1708 for Llanilar; 1408 for Auchincruive
+	tEOS = 1700; // 1708 for Llanilar; 1408 for Auchincruive
 
 	// Initialize densities
 	initialize();
@@ -67,11 +67,11 @@ void setParameters() {
 	CPathogen::TOTALGENOTYPES = TOTALGENOTYPES;
 
 	// Crop starting density - set so that maximum healthy area = 6.044 - same as Femke's. was 0.0000000663
-	cropStartingArea = 1.15e-2; //5e-3 LLanilar; 1.15e-2 Auchincruive
+	cropStartingArea = 5e-3; //5e-3 LLanilar; 1.15e-2 Auchincruive
 	aCropParam = 6;//6 Llanilar; 6 Auchincruive
 	bCropParam = 90; //90 Llanilar; 90 Auchincruive
-	cCropParam = 560; //633 Llanilar; 560 Auchincruive
-	mCropParam = 1650; //1900 Llanilar; 1650 Auchincruive
+	cCropParam = 633; //633 Llanilar; 560 Auchincruive
+	mCropParam = 1900; //1900 Llanilar; 1650 Auchincruive
 	nCropParam = 80; //80 Llanilar; 80 Auchincruive
 
 	// Dictate whether the crop has receptors against each of the virulence genes
@@ -83,14 +83,18 @@ void setParameters() {
 	// Pathogen paramters
 	
 	// Quantity of primary inoculum
-	primaryInoculum = 1.0;
+	if (processNumber == 0) {
+		primaryInoculum = 0.0;
+	} else primaryInoculum = 0.1;
 	// Shape of primary inoculum curve (k)
 	PIxi = 3;
 	// Another shape of primary inoculum curve (theta)
 	PIb = 100;
-
+	
 	// Specify the number of fungicides
 	nFungicides = 1;
+	if(processNumber > 5) nFungicides = 2;
+	
 	// Specify the spray times:
 	std::vector<double> sprayTimes;
 	// Llanilar 7-day interval spray program:
@@ -98,11 +102,16 @@ void setParameters() {
 	// Auchincruive 7-day interval spray program:
 	//sprayTimes.push_back(546); sprayTimes.push_back(644); sprayTimes.push_back(742); sprayTimes.push_back(840); sprayTimes.push_back(924); sprayTimes.push_back(1036); sprayTimes.push_back(1134);
 	// Modified Auchincruive spray program:
-	sprayTimes.push_back(700); sprayTimes.push_back(750); sprayTimes.push_back(800); sprayTimes.push_back(850);
-	sprayTimes.push_back(900); sprayTimes.push_back(950); sprayTimes.push_back(1000); sprayTimes.push_back(1050); sprayTimes.push_back(1100);
-	sprayTimes.push_back(1150); sprayTimes.push_back(1200); sprayTimes.push_back(1250); sprayTimes.push_back(1300); sprayTimes.push_back(1350);
+	//sprayTimes.push_back(700); sprayTimes.push_back(750); sprayTimes.push_back(800); sprayTimes.push_back(850);
+	//sprayTimes.push_back(900); sprayTimes.push_back(950); sprayTimes.push_back(1000); sprayTimes.push_back(1050); sprayTimes.push_back(1100);
+	//sprayTimes.push_back(1150); sprayTimes.push_back(1200); sprayTimes.push_back(1250); sprayTimes.push_back(1300); sprayTimes.push_back(1350);
+	// Modified Llanilar spray program
+	sprayTimes.push_back(500); sprayTimes.push_back(600); sprayTimes.push_back(700); sprayTimes.push_back(800); sprayTimes.push_back(900); sprayTimes.push_back(1000);
+	sprayTimes.push_back(1100); sprayTimes.push_back(1200); sprayTimes.push_back(1300); sprayTimes.push_back(1400); sprayTimes.push_back(1500); sprayTimes.push_back(1600);
 	// Specify the dose of each fungicide - normally the dose applied is the same each spray:
-	std::vector<double> dose; for (unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(1.6);// 1.6 * std::div(processNumber,3).quot
+	double tempDose = 1.6;
+	if (processNumber < 2) tempDose = 0.0;
+	std::vector<double> dose; for (unsigned int iF = 0; iF != nFungicides; ++iF) dose.push_back(tempDose);// 1.6 * std::div(processNumber,3).quot
 	// Now create the spray program for each fungicide. You can adjust this manually later if you want.
 	for (unsigned int iF = 0; iF != nFungicides; ++iF) {
 		std::vector<std::pair<unsigned int, double> > tempVecPair;
@@ -141,27 +150,28 @@ void setParameters() {
 
 	// Default infection efficiency
 	std::vector<double> res; res.push_back(1.15); res.push_back(1.0); res.push_back(0.8); //res[std::div(processNumber, 3).rem]
-	defInfEff = 0.0165 * 0.0136 * res[std::div(processNumber, 3).rem];// IE: 0.0165; zeta: 0.01373 (adjusted down to 0.01 to ensure sev < 1% at end of season); 1.1526 Shepody, 1.0 Lady Balfour, 0.8 Sarpo Mira; 1.122 Llanilar
+	//defInfEff = 0.0165 * 0.0136 * res[std::div(processNumber, 3).rem] * 0.921;// IE: 0.0165; zeta: 0.01373 (adjusted down to 0.01 to ensure sev < 1% at end of season); 1.1526 Shepody, 1.0 Lady Balfour, 0.8 Sarpo Mira; 1.122 Llanilar
+	defInfEff = 0.0165 * 0.01373 * 1.1526 * 0.921;
+	if(processNumber == 3 | processNumber == 5 | processNumber == 7 | processNumber == 9) defInfEff = 0.0165 * 0.01373 * 1.0 * 0.921;
 
 	/// theta - 0.636 for resistance
 	AVIRReductionSR = 0.0; // Proportional reduction in sporulation rate as a result of being avirulent
 	AVIRReductionLP = 0.0; // Proportional extention of latent period as a result of being avirulent
 	AVIRReductionIE = 0.0; // Proportional reduction in infection efficiency as a result of being avirulent - i.e. due to host resistance
 
-	//std::vector<double> thetaValues; thetaValues.push_back(0.06); thetaValues.push_back(0.16); thetaValues.push_back(0.24); thetaValues.push_back(0.3); thetaValues.push_back(0.34);
-
+	// with 1 resistance QTL, use theta values for the following resistance ratings. 
+	// 3 = 0.06; 4 = 0.16; 5 = 0.24; 6 = 0.3; 7 = 0.34
+	std::vector<double> thetaValues; thetaValues.push_back(0.06); thetaValues.push_back(0.16); thetaValues.push_back(0.24); thetaValues.push_back(0.3); thetaValues.push_back(0.34);
 	//if (processNumber > 0) {
 	//	AVIRReductionSR = thetaValues[floor(processNumber+0.5) - 1]; // Proportional reduction in sporulation rate as a result of being avirulent
 	//	AVIRReductionLP = thetaValues[floor(processNumber+0.5) - 1]; // Proportional extention of latent period as a result of being avirulent
 	//	AVIRReductionIE = thetaValues[floor(processNumber+0.5) - 1]; // Proportional reduction in infection efficiency as a result of being avirulent - i.e. due to host resistance
 	//}
 
-	// with 1 resistance QTL, use theta values for the following resistance ratings. 
-	// 3 = 0.06
-	// 4 = 0.16
-	// 5 = 0.24 
-	// 6 = 0.3
-	// 7 = 0.34
+	fungResPi.assign(nFungicides, 1.0);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
+	// If you want to change the aMax of the solo fungicide, do so here:
+	fungResPi[0] = 1.0;
+	if (processNumber == 4 | processNumber == 5 | processNumber == 8 | processNumber == 9) fungResPi[0] = 0.5;
 
 	// Fitness costs to virulence, default is 0.002, dom is 0.5
 	// Fitness cost in infection efficiency as a result of being virulent (should be less than result of host resistance above)
@@ -224,12 +234,10 @@ void setParameters() {
 	mutationRateFungR = 1e-10; //1e-10
 	mutationRateVir = 0.0;
 
-	fungResPi.assign(nFungicides, 0.6);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
-
 	fungResDom = 0.5; //in QTL model this is dominance, default is 0.5 (QTL model), based on literature. In allele model it is not dominance but expression level, which is 1.0 by default. 
 
 	// Decay rate of the fungicide, 6 Jdays. 
-	fungDecayRate = 0.08632; // default is 0.007967209, 6 julian days.
+	fungDecayRate = 0.07043; // default is 0.007967209, 6 julian days.
 	
 	// Create a matrix specifying mutation between different genotypes
 	createMutationMatrices();
@@ -679,6 +687,8 @@ void newCalculateLatentPeriod(const std::vector<CFungicide>& fungicides) {
 
 		// Loop through each fungicide
 		for (size_t iFung = 0; iFung != fungicides.size(); ++iFung) {
+			// The mixing partner doesn't affect the latent period
+			if (iFung == 1) continue;
 
 			// This stores the consequence of resistance
 			double coefficient = 1.0;
