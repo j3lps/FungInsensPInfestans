@@ -152,7 +152,7 @@ void setParameters() {
 	std::vector<double> res; res.push_back(1.15); res.push_back(1.0); res.push_back(0.8); //res[std::div(processNumber, 3).rem]
 	//defInfEff = 0.0165 * 0.0136 * res[std::div(processNumber, 3).rem] * 0.921;// IE: 0.0165; zeta: 0.01373 (adjusted down to 0.01 to ensure sev < 1% at end of season); 1.1526 Shepody, 1.0 Lady Balfour, 0.8 Sarpo Mira; 1.122 Llanilar
 	defInfEff = 0.0165 * 0.01373 * 1.1526 * 0.921;
-	if(processNumber == 3 | processNumber == 5 | processNumber == 7 | processNumber == 9) defInfEff = 0.0165 * 0.01373 * 1.0 * 0.921;
+	if(processNumber == 3 || processNumber == 5 || processNumber == 7 || processNumber == 9) defInfEff = 0.0165 * 0.01373 * 1.0 * 0.921;
 
 	/// theta - 0.636 for resistance
 	AVIRReductionSR = 0.0; // Proportional reduction in sporulation rate as a result of being avirulent
@@ -171,7 +171,7 @@ void setParameters() {
 	fungResPi.assign(nFungicides, 1.0);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
 	// If you want to change the aMax of the solo fungicide, do so here:
 	fungResPi[0] = 1.0;
-	if (processNumber == 4 | processNumber == 5 | processNumber == 8 | processNumber == 9) fungResPi[0] = 0.5;
+	if (processNumber == 4 || processNumber == 5 || processNumber == 8 || processNumber == 9) fungResPi[0] = 0.5;
 
 	// Fitness costs to virulence, default is 0.002, dom is 0.5
 	// Fitness cost in infection efficiency as a result of being virulent (should be less than result of host resistance above)
