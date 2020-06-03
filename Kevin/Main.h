@@ -12,6 +12,8 @@
 
 // SIMULATION VARIABLES
 unsigned int processNumber;
+bool printDailyResults;
+bool printYearResults;
 
 // TIME VARIABLES
 // Time of the end of the season
@@ -64,16 +66,21 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen &PA_IN, CPath
 	const std::vector<CFungicide> &FU_IN, std::vector<CFungicide> &FU_DV);
 
 // Reset the variables between years
-void resetBwYears();
+void resetBwYears(unsigned int year);
 // Store the variables at the end of the year
 void storeYearResults(unsigned int year);
 // Store the results each day
 void storeResults(double tNow, unsigned int year);
 // Initialize densities
 void initialize();
+// Reset objects
+void reset();
 
 // Write results to file (2 files; 1 for each day, 1 for each year)
-void writeResultsToFile();
+void writeResultsToFile(const std::string& fileNameAddition = "");
+
+// Set the lifecycle parameters depending on which cultivar is chosen
+void setLifecycleParms(unsigned int);
 
 // Print base infection efficiency and latent period
 void printIE();
@@ -82,6 +89,16 @@ void printSR();
 
 // Set the biological parameters
 void setParameters();
+
+// Run the model for the given set of starting parameters
+void runModel(unsigned int NYEARS);
+
+// Run the model without any pathogen for a single season
+void runModelNoPathogen();
+// Run the model for a single year with the pathogen but without control
+void runModelNoControl();
+// Run model for each control strategy by itself (i.e. each fungicide at label dose, and each cultivar)
+void runModelEachControl();
 
 // Work out the total number of spores of each genotype, taking into account mutation
 void mutateOrDontIDontCare(const CPathogen&, std::vector<double>&);
@@ -93,8 +110,6 @@ void calculateInfectionEfficiency(const std::vector<CFungicide>&);
 void calculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the base infection efficiency for each genotype according to virulence
 void calculateBaseIE();
-// Calculate the base sporulation rate for each genotype dependent on virulence
-void calculateBaseSR();
 // Calculate the latent period for each genotype
 void calculateBaseLP();
 // Create the matrices for mutation
@@ -225,6 +240,9 @@ std::vector<double> alpha;
 // beta is the curvature of the dose-response curve - deprecated
 std::vector<double> beta;
 
+// Specify the cultivar resistance and fungicide dose for each year - each element of the vector is a year; first is the cultivar resistance; second is the fungicide dose.
+std::vector<std::pair<double,double>> stratProgram;
+
 // OUTPUT
 // Day results
 struct SDayResults{
@@ -239,6 +257,8 @@ struct SDayResults{
 	std::vector<double> totalLatent;
 	std::vector<double> totalInfectious;
 	std::vector<double> severity;
+	// Reset all the vectors to empty vectors
+	void reset();
 };
 
 SDayResults DayResults;
@@ -250,6 +270,8 @@ struct SYearResults{
 	std::vector<double> AUDPC;
 	std::vector<double> HAD;
 	std::vector<double> Severity;
+	// Reset all the vectors to empty vectors
+	void reset();
 };
 
 SYearResults YearResults;

@@ -6,3 +6,8 @@ CFungicide::CFungicide(){
 
 }
 
+void CFungicide::resetBWSeasons() {
+
+	currentDose = 0.0;
+
+}

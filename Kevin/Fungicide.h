@@ -9,6 +9,8 @@ public:
 
 	double currentDose;
 
+	// Zero dose between seasons
+	void resetBWSeasons();
 };
 
 
