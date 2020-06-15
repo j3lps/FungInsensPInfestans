@@ -53,9 +53,11 @@ std::vector<CFungicide> vecFungicide;
 // Adjusted infection efficiency and sporulation rate depending on resistance genes and fungicide dose
 std::vector<double> infectionEfficiency;
 std::vector<double> latentPeriod;
+std::vector<double> sporulationRate;
 // Base infection efficiency when virulence genes are taken into account - this stays constant throughout the sim
 std::vector<double> baseIE;
 std::vector<double> baseLP;
+std::vector<double> baseSR;
 
 // Iterate through a year
 void iterate(double tStart, double tEnd, unsigned int year);
@@ -82,11 +84,6 @@ void writeResultsToFile(const std::string& fileNameAddition = "");
 // Set the lifecycle parameters depending on which cultivar is chosen
 void setLifecycleParms(unsigned int);
 
-// Print base infection efficiency and latent period
-void printIE();
-void printLP();
-void printSR();
-
 // Set the biological parameters
 void setParameters();
 
@@ -110,6 +107,8 @@ void calculateInfectionEfficiency(const std::vector<CFungicide>&);
 void calculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the base infection efficiency for each genotype according to virulence
 void calculateBaseIE();
+// Calculate the sporulation rate for each genotype according to virulence
+void calculateBaseSR();
 // Calculate the latent period for each genotype
 void calculateBaseLP();
 // Create the matrices for mutation

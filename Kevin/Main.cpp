@@ -9,20 +9,20 @@ int main(int argc, char**argv) {
 	}
 	else processNumber = 0;
 	
-	printDailyResults = true;
+	printDailyResults = false;
 	printYearResults = true;
 	
 	// Set all the parameters for this simulation
 	setParameters();
 	
 	// First run the simulation for a year without any pathogen
-	runModelNoPathogen();
+	//runModelNoPathogen();
 	
 	// Run the model for a single year with each fungicide, and each resistant cultivar
-	runModelNoControl();
+	//runModelNoControl();
 
 	// Run the model with each control singly for 100 years
-	runModelEachControl();
+	//runModelEachControl();
 
 	// Run the model specified initially for 100 years
 	runModel(100);
@@ -329,6 +329,7 @@ void setParameters() {
 	// AVIRReduction = 0.0 implies no crop resistance; Sarpo Mira implies that AVIRReduction = 0.3 (1.0 - 0.8/1.15)
 	AVIRReductionLP = 0.0;
 	AVIRReductionIE = 0.0;
+	AVIRReductionSR = 0.0;
 
 	// Create a strategy program for the 100 years
 	//std::pair<double,double> strat1 = std::pair<double, double>(std::div(processNumber, 11).rem * 0.1 * 0.3, 0.6);
@@ -341,16 +342,17 @@ void setParameters() {
 	// Way to adjust fungicide insensitivity for partial insensitivity
 	fungResPi.assign(nFungicides, 1.0);		// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
 
-	// Fitness costs to virulence, default is 0.002, dom is 0.5
+	// Fitness costs to virulence, default is 0.002, dominance is 0.5
 	// Fitness cost in infection efficiency as a result of being virulent (should be less than result of host resistance above)
 	fCReductionIE = 0.002;// default is 0.002
-	// Dominance of the virulent fitness cost reduction
 	fCDomIE = 0.5;
 	// Proportional *rise* in latent period as a result of having a fitness cost (should be less than result of host resistance above)
 	// i.e. fitness cost = 0.2 -> latent period = latent period * 1.2; fitness cost = 1.0 -> latent period = latent period * 2.0
 	fCReductionLP = 0.002;
-	// Dominance
 	fCDomLP = 0.5;
+	// Fitness cost and dominance of sporulation rate
+	fCReductionSR = 0.002;
+	fCDomSR = 0.5;
 	
 	// Proportion of spores leaving the field
 	propSporesLeavingField = 0.0; //default is 0
@@ -363,6 +365,8 @@ void setParameters() {
 	// Fitness cost to latent period (multiply the latent period by this - make it longer)
 	fitnessCostLP = 0.002;
 	fitnessCostLPDom = 0.5;
+	fitnessCostSR = 0.002;
+	fitnessCostSRDom = 0.5;
 
 	// theta dominance. default 0.5
 	// Dominance of the avirulence reduction
@@ -794,9 +798,54 @@ void newCalculateInfectionEfficiency(const std::vector<CFungicide>& fungicides) 
 				case 0:
 					coefficient *= (1.0 - 0.0);
 					break;
-					// 1 = SR - partial reduction in sporulation rate by fungicide
+					// 1 = SR - partial reduction in infection efficiency by fungicide
 				case 1:
 					
+					coefficient *= (1.0 - fungResPi[iFung] * fungResDom);
+
+					break;
+					// 2 = RR - no reduction in the infection efficiency
+				case 2:
+
+					coefficient *= (1.0 - fungResPi[iFung]);
+					break;
+				}
+			}
+			proportionReduction *= (1 - alphaMax[iFung] * coefficient * (1 - exp(-kappa[iFung] * fungicides[iFung].currentDose)));
+		}
+		infectionEfficiency[iGeno] *= proportionReduction;
+	}
+}
+
+void newCalculateSporulationRate(const std::vector<CFungicide>& fungicides) { // this needs to contain confersResistanceToFung (16.08.2017)
+																			   // Set sporulation rate array back to default for every genotype
+	sporulationRate = baseSR;
+
+	// Loop through each genotype, and for each fungicide resistance genotype reduce the sporulation rate accordingly
+	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
+
+		double proportionReduction = 1.0;
+
+		// Loop through each fungicide
+		for (size_t iFung = 0; iFung != fungicides.size(); ++iFung) {
+
+			// This stores the consequence of resistance
+			double coefficient = 1.0;
+
+			// The following genes are fungicide resistance genes. N.B. This is not meant to go from zero, unless there are no virulence genes. It is correct to go from nVirulenceGenes.
+			for (unsigned int iGene = nVirulenceGenes; iGene != TOTALGENES; ++iGene) {
+				// Work out the diploid for this gene
+				unsigned int genotype = 0;
+				// Only work out the genotype if this gene confers resistance to this fungicide, otherwise it's susceptible
+				if (confersResistanceToFung[iGene - nVirulenceGenes][iFung]) genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
+				switch (genotype) {
+					// 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
+				case 0:
+					coefficient *= (1.0 - 0.0);
+					break;
+					// 1 = SR - partial reduction in sporulation rate by fungicide
+				case 1:
+
 					coefficient *= (1.0 - fungResPi[iFung] * fungResDom);
 
 					break;
@@ -809,7 +858,7 @@ void newCalculateInfectionEfficiency(const std::vector<CFungicide>& fungicides) 
 			}
 			proportionReduction *= (1 - alphaMax[iFung] * coefficient * (1 - exp(-kappa[iFung] * fungicides[iFung].currentDose)));
 		}
-		infectionEfficiency[iGeno] *= proportionReduction;
+		sporulationRate[iGeno] *= proportionReduction;
 	}
 }
 
@@ -928,6 +977,74 @@ void calculateBaseIE() {
 	}
 
 	//printIE();
+
+}
+
+void calculateBaseSR() {
+
+	baseSR.assign(TOTALGENOTYPES, defSporRate);
+
+	// Loop through each genotype, and for each resistance genotype reduce the sporulation rate accordingly
+	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
+
+		// Calculate the fitness cost for this genotype
+		double fitnessCost = 1.0;
+
+		for (unsigned int iGene = 0; iGene != TOTALGENES; ++iGene) {
+
+			// Work out the diploid for this gene
+			unsigned int genotype = genotypeToDiploid1D[iGene * TOTALGENOTYPES + iGeno];
+
+			// If a virulence gene, then account for reduction in sporulation rate for avirulent alleles
+			if (iGene < nVirulenceGenes) {
+
+				// Store the proportional reduction for this gene
+				double proportionReduction = 1.0;
+
+				switch (genotype) {
+					// 0 = AA - avirulent; infection efficiency is reduced
+				case 0:
+					if (cropReceptor[iGene]) proportionReduction *= (1 - AVIRReductionSR);
+					else proportionReduction *= 1.0;
+					break;
+					// 1 = Aa - partially virulent
+				case 1:
+					if (cropReceptor[iGene]) proportionReduction *= (1 - fCReductionSR * fCDomSR);
+					else proportionReduction *= (1 - fCReductionSR * fCDomSR);
+					break;
+					// 2 = aa - virulent; use default sporulation rate
+				case 2:
+					if (cropReceptor[iGene]) proportionReduction *= (1 - fCReductionSR);
+					else proportionReduction *= (1 - fCReductionSR);
+					break;
+
+				}
+
+				baseSR[iGeno] *= proportionReduction;
+			}
+			// Otherwise account for fitness cost of having fungicide resistance
+			else {
+
+				switch (genotype) {
+					// 0 = SS - no fitness cost of having fungicide resistance
+				case 0:
+					break;
+					// 1 = SR - partial reduction in infection efficiency due to fitness cost 
+				case 1:
+					fitnessCost *= (1 - fitnessCostSR * fitnessCostSRDom);
+					break;
+					// 2 = RR - full fitness cost of having fungicide resistance
+				case 2:
+					fitnessCost *= (1 - fitnessCostSR);
+					break;
+				}
+
+			}
+
+		}
+
+		baseSR[iGeno] *= fitnessCost;
+	}
 
 }
 
@@ -1288,17 +1405,20 @@ void setLifecycleParms(unsigned int cultivar)
 	// Default infection efficiency of a sensitive pathogen on a susceptible cultivar
 	defInfEff = 0.0165 * 0.01373 * cultRes[cultivar-1] * 0.921; // IE: 0.0165; zeta: 0.01373; 0.921 Llanilar
 
-	// Infection efficiency and sporulation rate vectors (for each genotype)
+	// Infection efficiency, latent period and sporulation rate vectors (for each genotype)
 	baseIE.assign(TOTALGENOTYPES, defInfEff);
 	baseLP.assign(TOTALGENOTYPES, latentLifespan);
+	baseSR.assign(TOTALGENOTYPES, defSporRate);
 
 	// Initialise infection efficiency and latent period vectors - these change during each season due to fungicide doses.
 	infectionEfficiency.assign(TOTALGENOTYPES, defInfEff);
 	latentPeriod.assign(TOTALGENOTYPES, latentLifespan);
+	sporulationRate.assign(TOTALGENOTYPES, defSporRate);
 
 	// Functions that adjust the latent period, infection efficiency and sporulation rate for each genotype depending on the cultivar resistance
 	calculateBaseLP();
 	calculateBaseIE();
+	calculateBaseSR();
 
 }
 
