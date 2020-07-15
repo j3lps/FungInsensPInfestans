@@ -81,9 +81,6 @@ void reset();
 // Write results to file (2 files; 1 for each day, 1 for each year)
 void writeResultsToFile(const std::string& fileNameAddition = "");
 
-// Set the lifecycle parameters depending on which cultivar is chosen
-void setLifecycleParms(unsigned int);
-
 // Set the biological parameters
 void setParameters();
 

@@ -9,20 +9,12 @@ int main(int argc, char** argv) {
 	}
 	else processNumber = 0;
 
-	printDailyResults = false;
+	// Specify whether to print out daily or yearly results
+	printDailyResults = true;
 	printYearResults = true;
 
 	// Set all the parameters for this simulation
 	setParameters();
-
-	// First run the simulation for a year without any pathogen
-	runModelNoPathogen();
-
-	// Run the model for a single year with each fungicide, and each resistant cultivar
-	//runModelNoControl();
-
-	// Run the model with each control singly for 100 years
-	runModelEachControl();
 
 	// Run the model specified initially for 100 years
 	runModel(100);
@@ -31,142 +23,6 @@ int main(int argc, char** argv) {
 	writeResultsToFile();
 
 	return 0;
-
-}
-
-void runModelNoPathogen() {
-
-	// Turn on printing daily results
-	bool tempPDR = printDailyResults;
-	printDailyResults = true;
-
-	// Initialize densities
-	initialize();
-
-	// Turn off all primary inoculum
-	double tempPI = primaryInoculum;
-	primaryInoculum = 0.0;
-
-	// Run the model for a single year
-	runModel(1);
-
-	// Write the results to a file
-	writeResultsToFile("NPath");
-
-	// Switch daily results back to default
-	printDailyResults = tempPDR;
-	primaryInoculum = tempPI;
-
-	// Reset the recording objects
-	reset();
-
-}
-
-void runModelNoControl() {
-
-	// Turn on printing daily results
-	bool tempPDR = printDailyResults;
-	printDailyResults = true;
-
-	// Initialize densities
-	initialize();
-
-	// Turn off all forms of control
-	// 1. Set fungicides to dose zero
-	std::vector<std::vector<std::pair<unsigned int, double>>> tempSF = sprayFung;
-	for (std::vector<std::vector<std::pair<unsigned int, double>>>::iterator vecIt = sprayFung.begin(); vecIt != sprayFung.end(); ++vecIt) {
-		for (std::vector<std::pair<unsigned int, double>>::iterator vecIt2 = vecIt->begin(); vecIt2 != vecIt->end(); ++vecIt2) {
-			vecIt2->second = 0.0;
-		}
-	}
-	// 2. Set the cultivar to be susceptible
-	double tempDIE = defInfEff;
-	setLifecycleParms(1);
-
-	// Run the model for a single year
-	runModel(1);
-
-	// Write the results to a file
-	writeResultsToFile("NoControl");
-
-	// Switch daily results back to default
-	sprayFung = tempSF;
-	double posCult = tempDIE / (0.0165 * 0.01373 * 0.921);
-	if (posCult < 0.9) {
-		setLifecycleParms(1);
-	}
-	else if (posCult > 1.1) {
-		setLifecycleParms(3);
-	}
-	else {
-		setLifecycleParms(2);
-	}
-
-	// Reset the recording objects
-	reset();
-
-}
-
-void runModelEachControl() {
-
-	// Set all fungicide doses to zero
-	std::vector<std::vector<std::pair<unsigned int, double>>> tempSF = sprayFung;
-	for (std::vector<std::vector<std::pair<unsigned int, double>>>::iterator vecIt = sprayFung.begin(); vecIt != sprayFung.end(); ++vecIt) {
-		for (std::vector<std::pair<unsigned int, double>>::iterator vecIt2 = vecIt->begin(); vecIt2 != vecIt->end(); ++vecIt2) {
-			vecIt2->second = 0.0;
-		}
-	}
-	// Store the initial default infection efficiency (so we can reset the cultivar)
-	double tempDIE = defInfEff;
-
-	// Run each cultivar by itself
-	for (unsigned int iCult = 1; iCult <= 3; ++iCult) {
-
-		setLifecycleParms(iCult);
-
-		initialize();
-
-		runModel(100);
-
-		writeResultsToFile("Cult" + std::to_string(iCult));
-
-		reset();
-
-	}
-
-	// Loop over each cultivar and fungicide combination
-	for (unsigned int iCult = 1; iCult <= 3; ++iCult) {
-		setLifecycleParms(iCult);
-		for (unsigned int iFung = 0; iFung != nFungicides; ++iFung) {
-
-			// Add the dose for a single fungicide
-			for (std::vector<std::pair<unsigned int, double>>::iterator vecIt = sprayFung[iFung].begin(); vecIt != sprayFung[iFung].end(); ++vecIt) {
-				vecIt->second = 1.6;
-			}
-
-			initialize();
-
-			runModel(100);
-
-			writeResultsToFile("Cult" + std::to_string(iCult) + "Fung" + std::to_string(iFung));
-
-			reset();
-
-		}
-	}
-
-	// Reset the fungicides and cultivars to how they were before
-	sprayFung = tempSF;
-	double posCult = tempDIE / (0.0165 * 0.01373 * 0.921);
-	if (posCult < 0.9) {
-		setLifecycleParms(1);
-	}
-	else if (posCult > 1.1) {
-		setLifecycleParms(3);
-	}
-	else {
-		setLifecycleParms(2);
-	}
 
 }
 
@@ -328,8 +184,8 @@ void setParameters() {
 	unsigned int iCult = 0;
 
 	// AVIRReduction = 0.0 implies no crop resistance; Sarpo Mira implies that AVIRReduction = 0.3 (1.0 - 0.8/1.15)
-	AVIRReductionLP = cultRes[iCult];
 	AVIRReductionIE = cultRes[iCult];
+	AVIRReductionLP = cultRes[iCult];
 	AVIRReductionSR = cultRes[iCult];
 
 	// Infection efficiency, latent period and sporulation rate vectors (for each genotype)
