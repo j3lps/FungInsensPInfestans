@@ -177,8 +177,8 @@ void setParameters() {
 	// Site-specific transmission coefficient - 0.0364 is zeta, 0.901 is for Llanilar relative to Auchincruive
 	transCoef = 0.0364 * 0.901;
 
-	// The coefficients for each cultivar: 0.296 for Lady Balfour; 0.294 for Maris Piper; 0.251 for Shepody
-	std::vector<double> cultRes; cultRes.push_back(0.296); cultRes.push_back(0.294); cultRes.push_back(0.251);
+	// The coefficients for each cultivar: 0.224 for Lady Balfour; 0.268 for Escort; 0.318 for Sarpo Mira
+	std::vector<double> cultRes; cultRes.push_back(0.224); cultRes.push_back(0.268); cultRes.push_back(0.318);
 
 	// Choose the cultivar that you want to model
 	unsigned int iCult = 0;
@@ -570,7 +570,7 @@ void deriv(double tNow, CCrop HA_IN, CCrop& HA_DV, const CPathogen& PA_IN, CPath
 		PA_DV.sporesEnteringOWPool[iGeno] += secondarySpores[iGeno] / (1.0 + exp((-(tNow - Vtt0)) / Vtnu));
 
 		// New latent from primary inoculum
-		double newLatentThisGeno = depoProb * (pI * primaryInocProp[iGeno] + secondarySpores[iGeno]) * HA_IN.healthyAreaIndex / HA_IN.totalAreaIndex * infectionEfficiency[iGeno];
+		double newLatentThisGeno = transCoef * depoProb * (pI * primaryInocProp[iGeno] + secondarySpores[iGeno]) * HA_IN.healthyAreaIndex / HA_IN.totalAreaIndex * infectionEfficiency[iGeno];
 		PA_DV.Latent[iGeno] += newLatentThisGeno;
 		// Remove this area from the healthy area
 		HA_DV.healthyAreaIndex -= newLatentThisGeno;
