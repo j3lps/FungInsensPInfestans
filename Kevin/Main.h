@@ -101,10 +101,8 @@ void runModelEachControl();
 void mutateOrDontIDontCare(const CPathogen&, std::vector<double>&);
 // New functions for calculating the infectoin efficiency, added by Joe 06-02-2019
 void newCalculateInfectionEfficiency(const std::vector<CFungicide>&);
+void newCalculateSporulationRate(const std::vector<CFungicide>&);
 void newCalculateLatentPeriod(const std::vector<CFungicide>&);
-// Calculate the current infection efficiency, dependent on the fungicide dose
-void calculateInfectionEfficiency(const std::vector<CFungicide>&);
-void calculateLatentPeriod(const std::vector<CFungicide>&);
 // Calculate the base infection efficiency for each genotype according to virulence
 void calculateBaseIE();
 // Calculate the sporulation rate for each genotype according to virulence
@@ -157,6 +155,9 @@ double infectiousLifespan;
 double defInfEff;
 // Default sporulation rate
 double defSporRate;
+
+// Site-specific transmission coefficient
+double transCoef;
 
 // Proportion of spores that leave the field
 double propSporesLeavingField;
