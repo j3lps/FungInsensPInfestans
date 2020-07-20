@@ -2,6 +2,14 @@
 
 int main(int argc, char** argv) {
 
+	// The program is set up for the following simulations, determined by the 1st command line argument
+	// 0: No pathogen
+	// 1: Sensitive pathogen, on a susceptible crop, no fungicide
+	// 2-6: R3-R7 cultivar, with a single fungicide with absolute fungicide resistance
+	// 7-11: R3-R7 cultivar, with a single fungicide and a mixing partner with absolute fungicide resistance
+	// 12-16: 2-6 with a partially insensitive pathogen isolate
+	// 17-21: 7-11 with a partially insensitive pathogen isolate
+
 	if (argc == 2) {
 		std::istringstream ss(argv[argc - 1]);
 		if (!(ss >> processNumber)) std::cerr << "Invalid input " << argv[argc - 1] << "\n";
@@ -106,7 +114,7 @@ void setParameters() {
 	// Timed so that healthy area finishes at 1.3 leaf index. was originally 2750, we updated host growth
 	tEOS = 1700; // 1708 for Llanilar; 1408 for Auchincruive
 
-	// Pathogen parameters
+	// *********** Pathogen parameters *********** //
 
 	// Quantity of primary inoculum
 	primaryInoculum = 0.1;
@@ -115,10 +123,36 @@ void setParameters() {
 	// Another shape of primary inoculum curve (theta)
 	PIb = 100;
 
+	// Default infection efficiency
+	defInfEff = 0.0165; // default is 0.0165
+
+	// Natural mortality rates for latent and infectoius lesions
+	latentMortalityRate = 0.0;     //default is 0
+	infectiousMortalityRate = 0.0; //default is 0
+
+	// Latent period
+	latentLifespan = 50.0; //default is 50.66542  
+	// Infectious period
+	infectiousLifespan = 100.0;  //default is 102
+
+	// Default sporulation rate, Rho0. 
+	defSporRate = 200; // Default is 200
+
+	// survival to next season
+	Vtnu = 20;		//default is 20
+	Vtt0 = 1600;   // 200gdd, 2 weeks, before burnoff of crop. 
+
+	// Site-specific transmission coefficient - 0.0364 is zeta, 0.901 is for Llanilar relative to Auchincruive
+	transCoef = 0.0426 * 0.882;
+
+	// *********** Fungicide parameters *********** //
+
 	// Specify the number of fungicides
 	nFungicides = 1;
+	// If appropriate, add a second fungicide
+	if ((processNumber >= 7 && processNumber <= 11) || (processNumber >= 17 && processNumber <= 21)) nFungicides = 2;
 
-	// Specify the spray times:
+	// Create a vector that has each spray time (degree days)
 	std::vector<double> sprayTimes;
 	// Modified Llanilar spray program
 	sprayTimes.push_back(500); sprayTimes.push_back(600); sprayTimes.push_back(700); sprayTimes.push_back(800); sprayTimes.push_back(900); sprayTimes.push_back(1000);
@@ -141,11 +175,13 @@ void setParameters() {
 	std::vector<double> tempVec(TOTALGENOTYPES,1.0);
 	alphaMax.assign(nFungicides, tempVec);
 	kappa.assign(nFungicides, 0.1);
-	// Make the 2nd fungicide less effective
+	// The mixing partner is less effective
 	if(nFungicides == 2) for (std::vector<double>::iterator vecIt = alphaMax[1].begin(); vecIt != alphaMax[1].end(); ++vecIt) *vecIt = 0.5;
 
-	// Specify the alphaMax of a resistance strain for each fungicide
-	fungResPi.assign(nFungicides, 1.0);	// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
+	// Specify the degree to which alpha max is reduced for a fungicide resistant pathogen strain
+	if (processNumber <= 11) {
+		fungResPi.assign(nFungicides, 1.0);	// 1.0 = complete insensitivity; 0.0 = complete sensitivity of the insensitive strain; 0.6 for partial resistance.
+	} else fungResPi.assign(nFungicides, 0.6);
 	fungResDom = 0.5; // Dominance of the fungicide resistance gene
 
 	// Calculate the alphaMax for each genotype against fungicide 1
@@ -163,48 +199,20 @@ void setParameters() {
 		}
 	}
 
-	// survival to next season
-	Vtnu = 20;		//default is 20
-	Vtt0 = 1600;   // 200gdd, 2 weeks, before burnoff of crop. 
+	// Decay rate of the fungicide, 6 Jdays. 
+	fungDecayRate = 0.007967; // default is 0.007967209, 6 julian days.
 
-	// Default infection efficiency
-	defInfEff = 0.0165; // default is 0.0165
+	// *********** Cultivar parameters *********** //
 
-	// Natural mortality rates for latent and infectoius lesions
-	latentMortalityRate = 0.0;     //default is 0
-	infectiousMortalityRate = 0.0; //default is 0
-
-	// Latent period
-	latentLifespan = 50.0; //default is 50.66542  
-	// Infectious period
-	infectiousLifespan = 100.0;  //default is 102
-
-	// Default sporulation rate, Rho0. 
-	defSporRate = 200; // Default is 200
-
-	// Site-specific transmission coefficient - 0.0364 is zeta, 0.901 is for Llanilar relative to Auchincruive
-	transCoef = 0.0426 * 0.882;
-
-	// The coefficients for each cultivar: 0.224 for Lady Balfour; 0.268 for Escort; 0.318 for Sarpo Mira
-	std::vector<double> cultRes; cultRes.push_back(0.224); cultRes.push_back(0.268); cultRes.push_back(0.318);
+	// The coefficients for each resistance rating (R3 to R7)
+	std::vector<double> cultRes; 
+	for (unsigned int RR = 3; RR != 8; ++RR) {
+		cultRes.push_back(0.19922 + RR * 0.01287);
+	}
+	processNumber = 11;
 
 	// Choose the cultivar that you want to model
-	unsigned int iCult = 0;
-
-	// AVIRReduction = 0.0 implies no crop resistance; Sarpo Mira implies that AVIRReduction = 0.3 (1.0 - 0.8/1.15)
-	AVIRReductionIE = cultRes[iCult];
-	AVIRReductionLP = cultRes[iCult];
-	AVIRReductionSR = cultRes[iCult];
-
-	// Infection efficiency, latent period and sporulation rate vectors (for each genotype)
-	baseIE.assign(TOTALGENOTYPES, defInfEff);
-	baseLP.assign(TOTALGENOTYPES, latentLifespan);
-	baseSR.assign(TOTALGENOTYPES, defSporRate);
-
-	// Initialise infection efficiency and latent period vectors - these change during each season due to fungicide doses.
-	infectionEfficiency.assign(TOTALGENOTYPES, defInfEff);
-	latentPeriod.assign(TOTALGENOTYPES, latentLifespan);
-	sporulationRate.assign(TOTALGENOTYPES, defSporRate);
+	unsigned int iCult = std::div(processNumber - 2,5).rem;
 
 	// Fitness costs to fungicide insensitivity, default is 0.002, dom is 0.5
 	// Fitness costs of fungicide resistance (proportional reduction in infection efficiency for each RR gene)
@@ -217,19 +225,18 @@ void setParameters() {
 	fitnessCostSR = 0.002;
 	fitnessCostSRDom = 0.5;
 
-	// theta dominance. default 0.5
-	// Dominance of the avirulence reduction
-	AVIRDomIE = 0.5;
-	// Dominance of the avirulence reduction
-	AVIRDomSR = 0.5;
-	// Doimnance
-	AVIRDomLP = 0.5;
-
 	// Mutation rate of a single allele. Normally either 0.000001 or 0. 
 	mutationRateFungR = 1e-10; //1e-10
 
-	// Decay rate of the fungicide, 6 Jdays. 
-	fungDecayRate = 0.007967; // default is 0.007967209, 6 julian days.
+	// Infection efficiency, latent period and sporulation rate vectors (for each genotype)
+	baseIE.assign(TOTALGENOTYPES, defInfEff);
+	baseLP.assign(TOTALGENOTYPES, latentLifespan);
+	baseSR.assign(TOTALGENOTYPES, defSporRate);
+
+	// Initialise infection efficiency and latent period vectors - these change during each season due to fungicide doses.
+	infectionEfficiency.assign(TOTALGENOTYPES, defInfEff);
+	latentPeriod.assign(TOTALGENOTYPES, latentLifespan);
+	sporulationRate.assign(TOTALGENOTYPES, defSporRate);
 
 	// Functions that adjust the latent period, infection efficiency and sporulation rate for each genotype depending on the cultivar resistance
 	calculateBaseLP();
@@ -701,23 +708,24 @@ void calculateBaseIE() {
 	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
 
 		// Calculate the fitness cost for this genotype
-		double fitnessCost = 1.0;
+		double coefficient = 1.0;
 
 		switch (iGeno) {
 			// 0 = SS - no fitness cost of having fungicide resistance
 		case 0:
+			coefficient *= (1 - AVIRReductionIE);
 			break;
 			// 1 = SR - partial reduction in infection efficiency due to fitness cost 
 		case 1:
-			fitnessCost *= (1 - fitnessCostIE * fitnessCostIEDom);
+			coefficient *= (1 - fitnessCostIE * fitnessCostIEDom) * (1 - AVIRDomIE * AVIRReductionIE);
 			break;
 			// 2 = RR - full fitness cost of having fungicide resistance
 		case 2:
-			fitnessCost *= (1 - fitnessCostIE);
+			coefficient *= (1 - fitnessCostIE);
 			break;
 		}
 
-		baseIE[iGeno] *= fitnessCost;
+		baseIE[iGeno] *= coefficient;
 	}
 
 }
@@ -730,23 +738,24 @@ void calculateBaseSR() {
 	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
 
 		// Calculate the fitness cost for this genotype
-		double fitnessCost = 1.0;
+		double coefficient = 1.0;
 
 		switch (iGeno) {
 		// 0 = SS - no fitness cost of having fungicide resistance
 		case 0:
+			coefficient *= (1 - AVIRReductionSR);
 			break;
 		// 1 = SR - partial reduction in infection efficiency due to fitness cost 
 		case 1:
-			fitnessCost *= (1 - fitnessCostSR * fitnessCostSRDom);
+			coefficient *= (1 - fitnessCostSR * fitnessCostSRDom) * (1 - AVIRReductionSR * AVIRDomSR);
 			break;
 		// 2 = RR - full fitness cost of having fungicide resistance
 		case 2:
-			fitnessCost *= (1 - fitnessCostSR);
+			coefficient *= (1 - fitnessCostSR);
 			break;
 		}
 
-		baseSR[iGeno] *= fitnessCost;
+		baseSR[iGeno] *= coefficient;
 	}
 
 }
@@ -759,25 +768,26 @@ void calculateBaseLP() {
 	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
 
 		// Calculate the fitness cost for this genotype
-		double fitnessCost = 1.0;
+		double coefficient = 1.0;
 
 		double proportionalExtension = 1.0;
 
 		switch (iGeno) {
 			// 0 = SS - no fitness cost
 		case 0:
+			coefficient *= (1 + AVIRReductionLP);
 			break;
 			// 1 = SR - heterozygote fitness cost
 		case 1:
-			fitnessCost *= (1 + fitnessCostLPDom * fitnessCostLP);
+			coefficient *= (1 + fitnessCostLPDom * fitnessCostLP) * (1 + AVIRDomLP * AVIRReductionLP);
 			break;
 			// 2 = RR - no reduction in the infection efficiency
 		case 2:
-			fitnessCost *= (1 + fitnessCostLP);
+			coefficient *= (1 + fitnessCostLP);
 			break;
 		}
 
-		baseLP[iGeno] *= fitnessCost;
+		baseLP[iGeno] *= coefficient;
 	}
 
 }
