@@ -1,14 +1,14 @@
 #include "Main.h"
 
-int main(int argc, char** argv) {
+// The program is set up for the following simulations, determined by the 1st command line argument
+// 0: No pathogen
+// 1: Sensitive pathogen, on a susceptible crop, no fungicide
+// 2-6: R3-R7 cultivar, with a single fungicide with absolute fungicide resistance
+// 7-11: R3-R7 cultivar, with a single fungicide and a mixing partner with absolute fungicide resistance
+// 12-16: 2-6 with a partially insensitive pathogen isolate
+// 17-21: 7-11 with a partially insensitive pathogen isolate
 
-	// The program is set up for the following simulations, determined by the 1st command line argument
-	// 0: No pathogen
-	// 1: Sensitive pathogen, on a susceptible crop, no fungicide
-	// 2-6: R3-R7 cultivar, with a single fungicide with absolute fungicide resistance
-	// 7-11: R3-R7 cultivar, with a single fungicide and a mixing partner with absolute fungicide resistance
-	// 12-16: 2-6 with a partially insensitive pathogen isolate
-	// 17-21: 7-11 with a partially insensitive pathogen isolate
+int main(int argc, char** argv) {
 
 	if (argc == 2) {
 		std::istringstream ss(argv[argc - 1]);
@@ -118,6 +118,7 @@ void setParameters() {
 
 	// Quantity of primary inoculum
 	primaryInoculum = 0.1;
+	if (processNumber == 0) primaryInoculum = 0.0;
 	// Shape of primary inoculum curve (k)
 	PIxi = 3;
 	// Another shape of primary inoculum curve (theta)
@@ -149,6 +150,8 @@ void setParameters() {
 
 	// Specify the number of fungicides
 	nFungicides = 1;
+	// If no control, set nFungicides = 0
+	if (processNumber == 1) nFungicides = 0;
 	// If appropriate, add a second fungicide
 	if ((processNumber >= 7 && processNumber <= 11) || (processNumber >= 17 && processNumber <= 21)) nFungicides = 2;
 
@@ -157,8 +160,10 @@ void setParameters() {
 	// Modified Llanilar spray program
 	sprayTimes.push_back(500); sprayTimes.push_back(600); sprayTimes.push_back(700); sprayTimes.push_back(800); sprayTimes.push_back(900); sprayTimes.push_back(1000);
 	sprayTimes.push_back(1100); sprayTimes.push_back(1200); sprayTimes.push_back(1300); sprayTimes.push_back(1400); sprayTimes.push_back(1500); sprayTimes.push_back(1600);
+	
 	// Specify the dose of each fungicide - normally the dose applied is the same each spray:
-	std::vector<double> dose; dose.push_back(1.6); // Infinito
+	std::vector<double> dose(nFungicides, 1.6); // Infinito
+	
 	// Now create the spray program for each fungicide. You can adjust this manually later if you want.
 	for (unsigned int iF = 0; iF != nFungicides; ++iF) {
 		std::vector<std::pair<unsigned int, double> > tempVecPair;
@@ -185,17 +190,19 @@ void setParameters() {
 	fungResDom = 0.5; // Dominance of the fungicide resistance gene
 
 	// Calculate the alphaMax for each genotype against fungicide 1
-	for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
-		switch (iGeno) {
-		case 0: // 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
-			alphaMax[0][iGeno] *= (1.0 - 0.0);
-			break;
-		case 1: // 1 = SR - partial reduction in infection efficiency by fungicide
-			alphaMax[0][iGeno] *= (1.0 - fungResPi[0] * fungResDom);
-			break;
-		case 2: // 2 = RR - no reduction in the infection efficiency
-			alphaMax[0][iGeno] *= (1.0 - fungResPi[0]);
-			break;
+	if (nFungicides > 0) {
+		for (unsigned int iGeno = 0; iGeno != TOTALGENOTYPES; ++iGeno) {
+			switch (iGeno) {
+			case 0: // 0 = SS - if susceptible, there is no resistance - don't need to reduce alpha_max
+				alphaMax[0][iGeno] *= (1.0 - 0.0);
+				break;
+			case 1: // 1 = SR - partial reduction in infection efficiency by fungicide
+				alphaMax[0][iGeno] *= (1.0 - fungResPi[0] * fungResDom);
+				break;
+			case 2: // 2 = RR - no reduction in the infection efficiency
+				alphaMax[0][iGeno] *= (1.0 - fungResPi[0]);
+				break;
+			}
 		}
 	}
 
@@ -209,10 +216,17 @@ void setParameters() {
 	for (unsigned int RR = 3; RR != 8; ++RR) {
 		cultRes.push_back(0.19922 + RR * 0.01287);
 	}
-	processNumber = 11;
 
 	// Choose the cultivar that you want to model
-	unsigned int iCult = std::div(processNumber - 2,5).rem;
+	unsigned int iCult = 0;
+	if (processNumber > 1) {
+		iCult = std::div(processNumber - 2, 5).rem;
+	}
+
+	// Set the amount by which the cultivar resistance affects the life-history parameters
+	AVIRReductionIE = cultRes[iCult];
+	AVIRReductionSR = cultRes[iCult];
+	AVIRReductionLP = cultRes[iCult];
 
 	// Fitness costs to fungicide insensitivity, default is 0.002, dom is 0.5
 	// Fitness costs of fungicide resistance (proportional reduction in infection efficiency for each RR gene)
