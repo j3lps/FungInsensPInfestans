@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include "math.h"
 #include "Fungicide.h"
 #include "Pathogen.h"
 #include "Crop.h"
